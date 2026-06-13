@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16140f">
+<title>命盤 · BaZi Compass</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Spectral:ital,wght@0,300;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Five-element palette — used functionally, mapped to real element data */
+    --mu:#5f9c6f; --huo:#c2483b; --tu:#bf9a52; --jin:#cdbf8e; --shui:#5f86a8;
+    --ink:#16140f; --ink-2:#1f1c16; --card:#242019; --card-2:#2c2820;
+    --line:#3a3428; --paper:#ece3d0; --paper-dim:#b9ad95; --paper-faint:#7d735e;
+    --cinnabar:#b23a2e; --gold:#cdbf8e;
+    --shadow:0 1px 0 rgba(255,255,255,.03), 0 18px 40px -24px rgba(0,0,0,.8);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--ink);color:var(--paper);
+    font-family:"Spectral",Georgia,serif;-webkit-text-size-adjust:100%;}
+  body{background:
+     radial-gradient(1200px 600px at 80% -10%, rgba(95,134,168,.10), transparent 60%),
+     radial-gradient(900px 500px at -10% 110%, rgba(178,58,46,.08), transparent 55%),
+     var(--ink);
+     min-height:100vh; line-height:1.5;}
+  .cjk{font-family:"Noto Serif SC","Spectral",serif;}
+  .wrap{max-width:860px;margin:0 auto;padding:22px 18px 80px;}
+  /* ---- header ---- */
+  header{display:flex;align-items:center;gap:14px;padding:6px 2px 18px;border-bottom:1px solid var(--line);}
+  .seal{width:46px;height:46px;border-radius:11px;background:var(--cinnabar);
+    display:grid;place-items:center;flex:none;box-shadow:var(--shadow);}
+  .seal span{font-family:"Noto Serif SC",serif;font-weight:700;color:#f3e7d2;font-size:25px;line-height:1;}
+  h1{font-size:21px;margin:0;font-weight:500;letter-spacing:.5px;}
+  h1 .en{display:block;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--paper-faint);font-family:"Spectral";font-weight:300;margin-top:3px;}
+  .ver{margin-left:auto;font-size:10px;color:var(--paper-faint);font-family:ui-monospace,monospace;text-align:right;letter-spacing:.04em;}
+  /* ---- honesty note ---- */
+  .note{background:linear-gradient(180deg,rgba(178,58,46,.10),rgba(178,58,46,.03));
+    border:1px solid rgba(178,58,46,.3);border-radius:12px;padding:12px 14px;margin:18px 0;
+    font-size:12.5px;color:var(--paper-dim);}
+  .note b{color:var(--paper);font-weight:600;}
+  /* ---- form ---- */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin:18px 0;box-shadow:var(--shadow);}
+  .panel h2{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--paper-faint);
+    font-weight:500;margin:0 0 14px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
+  @media(max-width:560px){.grid{grid-template-columns:1fr;}}
+  label{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--paper-faint);margin:0 0 5px;}
+  input,select{width:100%;background:var(--ink-2);border:1px solid var(--line);color:var(--paper);
+    border-radius:9px;padding:10px 11px;font-family:"Spectral";font-size:15px;}
+  input:focus,select:focus{outline:2px solid var(--shui);outline-offset:0;border-color:var(--shui);}
+  .row-inline{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--paper-dim);margin-top:4px;}
+  .row-inline input{width:auto;}
+  .adv{margin-top:14px;border-top:1px dashed var(--line);padding-top:14px;display:none;}
+  .adv.open{display:block;}
+  .adv-toggle{background:none;border:none;color:var(--shui);font-family:"Spectral";font-size:12.5px;
+    cursor:pointer;padding:0;letter-spacing:.04em;margin-top:12px;text-decoration:underline dotted;}
+  .btn{margin-top:16px;width:100%;background:var(--cinnabar);color:#f6ecda;border:none;border-radius:10px;
+    padding:13px;font-family:"Spectral";font-weight:500;font-size:15px;letter-spacing:.12em;text-transform:uppercase;
+    cursor:pointer;transition:filter .15s;}
+  .btn:hover{filter:brightness(1.08);}
+  .hint{font-size:11.5px;color:var(--paper-faint);margin-top:6px;line-height:1.45;}
+  /* ---- tabs ---- */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:24px 0 0;overflow-x:auto;}
+  .tab{background:none;border:none;color:var(--paper-faint);font-family:"Spectral";font-size:13.5px;
+    padding:11px 13px;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;letter-spacing:.04em;}
+  .tab .cjk{font-size:15px;margin-right:5px;}
+  .tab.active{color:var(--paper);border-bottom-color:var(--cinnabar);}
+  .view{display:none;animation:fade .35s ease;}
+  .view.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* ---- ming pan (signature) ---- */
+  .pan{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 6px;}
+  .pillar{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;text-align:center;}
+  .pillar .cap{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--paper-faint);
+    padding:9px 4px 7px;border-bottom:1px solid var(--line);}
+  .pillar .cap .zh{display:block;font-family:"Noto Serif SC";font-size:12px;letter-spacing:.1em;color:var(--paper-dim);margin-top:2px;}
+  .glyph{font-family:"Noto Serif SC";font-weight:600;font-size:34px;line-height:1.18;padding:6px 0 0;}
+  .glyph.zhi{padding:0 0 8px;}
+  .sub{font-size:10.5px;color:var(--paper-faint);padding:0 6px 2px;min-height:15px;}
+  .hide{font-family:"Noto Serif SC";font-size:13px;color:var(--paper-dim);padding:7px 4px;border-top:1px solid var(--line);}
+  .hide small{display:block;font-family:"Spectral";font-size:9px;letter-spacing:.14em;color:var(--paper-faint);text-transform:uppercase;margin-bottom:3px;}
+  .dm-badge{display:inline-block;font-size:9px;background:var(--cinnabar);color:#f6ecda;border-radius:5px;
+    padding:1px 6px;letter-spacing:.1em;vertical-align:middle;margin-left:0;}
+  /* element coloring */
+  .e-mu{color:var(--mu)!important} .e-huo{color:var(--huo)!important} .e-tu{color:var(--tu)!important}
+  .e-jin{color:var(--jin)!important} .e-shui{color:var(--shui)!important}
+  .bg-mu{background:rgba(95,156,111,.13)} .bg-huo{background:rgba(194,72,59,.13)}
+  .bg-tu{background:rgba(191,154,82,.13)} .bg-jin{background:rgba(205,191,142,.13)} .bg-shui{background:rgba(95,134,168,.15)}
+  /* ---- generic blocks ---- */
+  .block{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px;margin:14px 0;}
+  .block h3{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--paper-faint);font-weight:500;margin:0 0 12px;}
+  .block h3 .cjk{font-size:15px;color:var(--paper-dim);margin-right:6px;letter-spacing:0;}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid rgba(58,52,40,.5);font-size:14px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--paper-dim);} .kv .v{text-align:right;}
+  .v .cjk{font-size:15px;}
+  /* element bars */
+  .bars{display:flex;flex-direction:column;gap:9px;margin-top:4px;}
+  .bar-row{display:grid;grid-template-columns:64px 1fr 30px;align-items:center;gap:10px;font-size:13px;}
+  .bar-row .lab{color:var(--paper-dim);}
+  .bar-track{height:9px;border-radius:5px;background:var(--ink-2);overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;}
+  .bar-row .num{text-align:right;color:var(--paper-faint);font-variant-numeric:tabular-nums;}
+  /* tags */
+  .tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:999px;
+    padding:4px 10px;margin:0 6px 6px 0;color:var(--paper-dim);background:var(--ink-2);}
+  .tag .cjk{font-size:13px;}
+  .tag.clash{border-color:rgba(194,72,59,.5);color:#e7a59c;background:rgba(194,72,59,.08);}
+  .tag.he{border-color:rgba(95,156,111,.5);color:#9fcba9;background:rgba(95,156,111,.08);}
+  .tag.harm{border-color:rgba(191,154,82,.5);color:#e0c98c;background:rgba(191,154,82,.08);}
+  .interp{font-size:13.5px;color:var(--paper-dim);line-height:1.6;margin-top:8px;}
+  .interp em{color:var(--paper);font-style:normal;font-weight:600;}
+  /* luck pillars */
+  .luck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:9px;}
+  .luck{background:var(--card-2);border:1px solid var(--line);border-radius:11px;padding:10px 6px;text-align:center;}
+  .luck.now{border-color:var(--cinnabar);box-shadow:0 0 0 1px var(--cinnabar) inset;}
+  .luck .gz{font-family:"Noto Serif SC";font-size:23px;font-weight:600;line-height:1.15;}
+  .luck .meta{font-size:10px;color:var(--paper-faint);margin-top:4px;letter-spacing:.04em;}
+  .luck .ssh{font-size:10px;color:var(--paper-dim);margin-top:2px;}
+  .now-pill{display:inline-block;font-size:9px;background:var(--cinnabar);color:#f6ecda;border-radius:4px;padding:1px 5px;margin-top:4px;letter-spacing:.08em;}
+  /* today */
+  .today-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px;}
+  .today-head .big{font-family:"Noto Serif SC";font-size:40px;font-weight:600;}
+  .today-head .date{color:var(--paper-faint);font-size:13px;}
+  .yiji{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;}
+  @media(max-width:520px){.yiji{grid-template-columns:1fr;}}
+  .yiji .col{background:var(--ink-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;}
+  .yiji .col .h{font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px;}
+  .yiji .yi .h{color:#9fcba9;} .yiji .ji .h{color:#e7a59c;}
+  .yiji .col .cjk{font-size:14px;color:var(--paper-dim);line-height:1.9;}
+  /* key dates */
+  .event{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:12px 0;border-bottom:1px solid rgba(58,52,40,.6);}
+  .event:last-child{border-bottom:none;}
+  .event .when{font-variant-numeric:tabular-nums;font-size:13px;color:var(--paper);white-space:nowrap;}
+  .event .when small{display:block;color:var(--paper-faint);font-size:10.5px;letter-spacing:.04em;}
+  .event .what{font-size:13px;color:var(--paper-dim);}
+  .seg-title{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--paper-faint);margin:18px 0 2px;}
+  .empty{color:var(--paper-faint);font-size:13px;padding:10px 0;font-style:italic;}
+  .src{font-size:11px;color:var(--paper-faint);line-height:1.6;margin-top:8px;}
+  .src a{color:var(--shui);}
+  .hidden{display:none!important;}
+  .err{color:#e7a59c;font-size:13px;margin-top:8px;}
+  footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--paper-faint);line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="seal"><span>命</span></div>
+    <h1 class="cjk">命盤羅盤<span class="en">BaZi Compass · Four Pillars</span></h1>
+    <div class="ver" id="ver"></div>
+  </header>
+
+  <div class="note">
+    <b>What this is — and isn't.</b> The chart, elements, Ten Gods, luck cycles, and clash / combination
+    relationships below are <b>deterministic calendar mathematics</b> computed from your exact birth moment
+    (solar terms + the sexagenary cycle). The <b>interpretations</b> are classical Zǐ-píng (子平) conventions —
+    a traditional framework, not scientific prediction. Nothing here is a guarantee of events. No figure on this
+    page is invented: every value is calculated, and anything unavailable is marked <b>N/A</b>.
+  </div>
+
+  <!-- INPUT -->
+  <div class="panel">
+    <h2>Birth particulars</h2>
+    <div class="grid">
+      <div>
+        <label>Birth date (Gregorian)</label>
+        <input type="date" id="bdate" min="1901-01-01" max="2099-12-31">
+      </div>
+      <div>
+        <label>Birth time</label>
+        <input type="time" id="btime" value="12:00">
+        <div class="row-inline"><input type="checkbox" id="noTime"><span>Time unknown (hour pillar omitted)</span></div>
+      </div>
+      <div>
+        <label>Sex (for luck-cycle direction 大運)</label>
+        <select id="sex"><option value="1">Male 男</option><option value="0">Female 女</option></select>
+      </div>
+      <div>
+        <label>Day-master strength method note</label>
+        <select id="method">
+          <option value="classic">Show classical factors (no score)</option>
+        </select>
+      </div>
+    </div>
+    <button class="adv-toggle" id="advBtn">Optional: true solar-time correction (真太陽時) ▾</button>
+    <div class="adv" id="adv">
+      <div class="grid">
+        <div>
+          <label>Birth longitude (° East +, West −)</label>
+          <input type="number" id="lon" step="0.0001" placeholder="e.g. 103.85 for Singapore">
+        </div>
+        <div>
+          <label>Clock time zone at birth (UTC offset, hrs)</label>
+          <input type="number" id="tz" step="0.25" value="8">
+        </div>
+      </div>
+      <div class="row-inline"><input type="checkbox" id="useTst"><span>Apply true solar-time correction to the hour pillar</span></div>
+      <div class="hint">Traditional BaZi reads the hour pillar from <b>local apparent solar time</b>, not clock time.
+        Correction = longitude offset from the zone's standard meridian (4 min / degree) + the equation of time
+        (NOAA standard approximation). Leave off to use clock time as entered. This only matters near a 時辰 (2-hour) boundary.</div>
+    </div>
+    <button class="btn" id="go">Cast the chart</button>
+    <div class="err hidden" id="err"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" class="hidden">
+    <div class="tabs">
+      <button class="tab active" data-v="natal"><span class="cjk">命盤</span>Natal chart</button>
+      <button class="tab" data-v="luck"><span class="cjk">大運</span>Luck cycles</button>
+      <button class="tab" data-v="today"><span class="cjk">今日</span>Today</button>
+      <button class="tab" data-v="dates"><span class="cjk">流年</span>Key dates</button>
+    </div>
+
+    <section class="view active" id="v-natal"></section>
+    <section class="view" id="v-luck"></section>
+    <section class="view" id="v-today"></section>
+    <section class="view" id="v-dates"></section>
+  </div>
+
+  <footer>
+    <div><b>Calculation engine:</b> 6tail <code>lunar-javascript</code> v1.7.7 (MIT) — solar terms, sexagenary
+      pillars, Ten Gods, Na Yin, luck cycles, daily 宜/忌. <b>Relationship tables</b> (六冲/六合/三合/六害) and the
+      equation-of-time correction are canonical, encoded transparently in this file.</div>
+    <div style="margin-top:8px;" id="ver2"></div>
+    <div style="margin-top:8px;">Interpretation follows standard Zǐ-píng (子平) method. For a consequential life
+      decision, consult a qualified practitioner and your own judgement — this tool informs, it does not decide.</div>
+  </footer>
+</div>
+
+<!-- engine: CDN first (works in preview & online); falls back to bundled copy for offline -->
+<script>
+  window.__lunarReady = new Promise(function(res, rej){ window.__lr = res; window.__le = rej; });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/lunar-javascript@1.7.7/lunar.js"
+        onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
+<script>
+"use strict";
+const VERSION = "v2026:06:13-12:00";
+document.getElementById('ver').textContent = VERSION;
+document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
+
+/* ---------- canonical reference (standard, not invented) ---------- */
+const ZHI = ["","子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"]; // 1..12 per library
+const zhiIdx = z => ZHI.indexOf(z);
+const GAN_EL = {"甲":"mu","乙":"mu","丙":"huo","丁":"huo","戊":"tu","己":"tu","庚":"jin","辛":"jin","壬":"shui","癸":"shui"};
+const ZHI_EL = {"寅":"mu","卯":"mu","巳":"huo","午":"huo","辰":"tu","丑":"tu","戌":"tu","未":"tu","申":"jin","酉":"jin","亥":"shui","子":"shui"};
+const EL_NAME = {mu:"Wood 木",huo:"Fire 火",tu:"Earth 土",jin:"Metal 金",shui:"Water 水"};
+const EL_CN   = {mu:"木",huo:"火",tu:"土",jin:"金",shui:"水"};
+const EL_COLOR= {mu:"var(--mu)",huo:"var(--huo)",tu:"var(--tu)",jin:"var(--jin)",shui:"var(--shui)"};
+// generating cycle 木→火→土→金→水→木 ; controlling 木→土→水→火→金→木
+const GEN = {mu:"huo",huo:"tu",tu:"jin",jin:"shui",shui:"mu"};
+const CTRL= {mu:"tu",tu:"shui",shui:"huo",huo:"jin",jin:"mu"};
+// 六合 pairs / 三合 groups / 六害 pairs
+const LIU_HE = {"子":"丑","丑":"子","寅":"亥","亥":"寅","卯":"戌","戌":"卯","辰":"酉","酉":"辰","巳":"申","申":"巳","午":"未","未":"午"};
+const SAN_HE = [["申","子","辰"],["亥","卯","未"],["寅","午","戌"],["巳","酉","丑"]];
+const LIU_HAI= {"子":"未","未":"子","丑":"午","午":"丑","寅":"巳","巳":"寅","卯":"辰","辰":"卯","申":"亥","亥":"申","酉":"戌","戌":"酉"};
+const clashOf = z => { const i=zhiIdx(z); return i<1?null:ZHI[((i-1+6)%12)+1]; }; // 六冲 = opposite branch
+function sanHeOf(z){ for(const g of SAN_HE){ if(g.includes(z)) return g.filter(x=>x!==z); } return []; }
+
+/* Ten-God classical archetypes (traditional framing, clearly interpretive) */
+const SHISHEN = {
+  "比肩":"Companion (比肩) — self, peers, allies; independence, willpower, self-reliance.",
+  "劫财":"Rival (劫財) — siblings, competitors; drive and risk, but also rivalry over resources.",
+  "食神":"Output-gentle (食神) — expression, enjoyment, craft, longevity; relaxed creativity.",
+  "伤官":"Output-sharp (傷官) — talent, performance, rebellion; brilliant but can chafe at authority.",
+  "偏财":"Wealth-flexible (偏財) — windfalls, ventures, generosity; for men, also romance.",
+  "正财":"Wealth-steady (正財) — earned income, prudence, assets; for men, the spouse.",
+  "七杀":"Power-raw (七殺) — pressure, ambition, decisiveness; authority that must be governed.",
+  "正官":"Authority (正官) — status, discipline, responsibility; for women, the husband.",
+  "偏印":"Resource-unconventional (偏印) — intuition, niche knowledge, the unusual mentor.",
+  "正印":"Resource-nurturing (正印) — learning, support, reputation; the mother, protection."
+};
+const DISHI = { // 十二長生 — strength stage of the day stem in each branch
+  "长生":"Long Life — emerging, fresh strength.","沐浴":"Bathing — unsettled, transitional.",
+  "冠带":"Capping — maturing, gaining form.","临官":"Office — robust, capable.",
+  "帝旺":"Peak — maximum vigour.","衰":"Decline — past the peak.","病":"Sickness — weakened.",
+  "死":"Death — least vigour.","墓":"Tomb — stored, latent.","绝":"Cut-off — empty, a turning point.",
+  "胎":"Conception — potential forming.","养":"Nurture — gathering before growth."
+};
+
+/* ---------- equation of time (NOAA standard approximation, minutes) ---------- */
+function equationOfTimeMin(date){
+  const start=new Date(date.getFullYear(),0,0);
+  const day=Math.floor((date-start)/86400000);
+  const B=2*Math.PI*(day-81)/364;
+  return 9.87*Math.sin(2*B)-7.53*Math.cos(B)-1.5*Math.sin(B);
+}
+
+/* ---------- build ---------- */
+let chart=null;
+function buildChart(){
+  const Solar = window.Solar, LunarUtil = window.LunarUtil;
+  const dv=document.getElementById('bdate').value;
+  if(!dv) throw new Error("Please enter a birth date.");
+  const [Y,M,D]=dv.split('-').map(Number);
+  const noTime=document.getElementById('noTime').checked;
+  let h=12,mi=0;
+  if(!noTime){ const tv=document.getElementById('btime').value||"12:00"; [h,mi]=tv.split(':').map(Number); }
+  const sex=parseInt(document.getElementById('sex').value,10);
+
+  // true solar time correction (optional, deterministic)
+  let tstNote=null, hh=h, mm=mi;
+  if(!noTime && document.getElementById('useTst').checked){
+    const lon=parseFloat(document.getElementById('lon').value);
+    const tz=parseFloat(document.getElementById('tz').value);
+    if(isNaN(lon)||isNaN(tz)) throw new Error("True solar-time needs both longitude and time-zone offset.");
+    const stdMeridian=tz*15;
+    const lonMin=(lon-stdMeridian)*4;                 // 4 minutes per degree
+    const eot=equationOfTimeMin(new Date(Y,M-1,D));
+    const totalMin=lonMin+eot;
+    let t=new Date(Y,M-1,D,h,mi,0); t=new Date(t.getTime()+totalMin*60000);
+    hh=t.getHours(); mm=t.getMinutes();
+    tstNote=`Clock ${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')} → apparent solar `
+      +`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')} `
+      +`(Δ ${totalMin>=0?'+':''}${totalMin.toFixed(1)} min: longitude ${lonMin>=0?'+':''}${lonMin.toFixed(1)}, EoT ${eot>=0?'+':''}${eot.toFixed(1)})`;
+    var solar=Solar.fromYmdHms(t.getFullYear(),t.getMonth()+1,t.getDate(),hh,mm,0);
+  } else {
+    var solar=Solar.fromYmdHms(Y,M,D,hh,mm,0);
+  }
+  const lunar=solar.getLunar();
+  const ec=lunar.getEightChar();
+  const yun=ec.getYun(sex);
+  return {solar,lunar,ec,yun,sex,noTime,tstNote};
+}
+
+/* ---------- helpers ---------- */
+const elClass = el => "e-"+el;
+function ganChar(gz){return gz[0];} function zhiChar(gz){return gz[1];}
+function relTags(branch, natalBranch, label){
+  // returns array of tag HTML describing branch vs natalBranch
+  const out=[];
+  if(branch===natalBranch) out.push(`<span class="tag he"><span class="cjk">比</span> same as ${label}</span>`);
+  if(clashOf(natalBranch)===branch) out.push(`<span class="tag clash"><span class="cjk">沖</span> clashes ${label} ${natalBranch}</span>`);
+  if(LIU_HE[natalBranch]===branch) out.push(`<span class="tag he"><span class="cjk">合</span> combines ${label} ${natalBranch}</span>`);
+  if(sanHeOf(natalBranch).includes(branch)) out.push(`<span class="tag he"><span class="cjk">三合</span> trine with ${label} ${natalBranch}</span>`);
+  if(LIU_HAI[natalBranch]===branch) out.push(`<span class="tag harm"><span class="cjk">害</span> harms ${label} ${natalBranch}</span>`);
+  return out;
+}
+
+/* ---------- RENDER: natal ---------- */
+function renderNatal(){
+  const {ec,lunar,solar,noTime,tstNote}=chart;
+  const pillars=[
+    {cap:"Year",zh:"年柱 · ancestry",gz:ec.getYear(),hide:ec.getYearHideGan(),ssg:ec.getYearShiShenGan(),ssz:ec.getYearShiShenZhi(),ds:ec.getYearDiShi?ec.getYearDiShi():null,ny:ec.getYearNaYin()},
+    {cap:"Month",zh:"月柱 · career, parents",gz:ec.getMonth(),hide:ec.getMonthHideGan(),ssg:ec.getMonthShiShenGan(),ssz:ec.getMonthShiShenZhi(),ds:ec.getMonthDiShi?ec.getMonthDiShi():null,ny:ec.getMonthNaYin()},
+    {cap:"Day",zh:"日柱 · self, spouse",gz:ec.getDay(),hide:ec.getDayHideGan(),ssg:"日主",ssz:ec.getDayShiShenZhi(),ds:ec.getDayDiShi(),ny:ec.getDayNaYin(),isDay:true},
+  ];
+  if(!noTime) pillars.push({cap:"Hour",zh:"時柱 · children, late life",gz:ec.getTime(),hide:ec.getTimeHideGan(),ssg:ec.getTimeShiShenGan(),ssz:ec.getTimeShiShenZhi(),ds:ec.getTimeDiShi?ec.getTimeDiShi():null,ny:ec.getTimeNaYin()});
+
+  let pan=`<div class="pan" style="grid-template-columns:repeat(${pillars.length},1fr)">`;
+  pillars.forEach(p=>{
+    const g=ganChar(p.gz), z=zhiChar(p.gz);
+    const ge=GAN_EL[g], ze=ZHI_EL[z];
+    pan+=`<div class="pillar">
+      <div class="cap">${p.cap}<span class="zh cjk">${p.zh.split(' · ')[0]}</span></div>
+      <div class="sub">${p.isDay?'<span class="dm-badge">DAY MASTER</span>':(Array.isArray(p.ssg)?p.ssg.join(' '):p.ssg)}</div>
+      <div class="glyph ${elClass(ge)} cjk">${g}</div>
+      <div class="glyph zhi ${elClass(ze)} cjk">${z}</div>
+      <div class="sub">${(p.ssz||[]).join(' / ')}</div>
+      <div class="hide"><small>hidden 藏干</small>${(p.hide||[]).map(x=>`<span class="${elClass(GAN_EL[x])}">${x}</span>`).join(' ')}</div>
+      <div class="hide"><small>na yin · 12-stage</small>${p.ny} · ${p.ds||'—'}</div>
+    </div>`;
+  });
+  pan+=`</div>`;
+
+  // day master
+  const dmg=ec.getDayGan(), dme=GAN_EL[dmg];
+  const monthZhi=zhiChar(ec.getMonth()), monthEl=ZHI_EL[monthZhi];
+  // classical "in season" factors — stated as facts, no fabricated score
+  const supportsDM = (monthEl===dme) || (GEN[monthEl]===dme); // month element same as, or generates, DM
+  const drainsDM = (GEN[dme]===monthEl) || (CTRL[monthEl]===dme) || (CTRL[dme]===monthEl);
+  const seasonFact = monthEl===dme ? "the month branch is the <em>same element</em> as your Day Master (得令 — in season, supportive)."
+      : GEN[monthEl]===dme ? "the month branch element <em>generates</em> your Day Master (得令 — in season, supportive)."
+      : GEN[dme]===monthEl ? "your Day Master <em>generates</em> the month element (drains — out of season)."
+      : CTRL[monthEl]===dme ? "the month element <em>controls</em> your Day Master (out of season, weakening)."
+      : CTRL[dme]===monthEl ? "your Day Master <em>controls</em> the month element (out of season, expends effort)."
+      : "the month element is neutral to your Day Master.";
+
+  // element tally — eight characters' PRIMARY element only (本氣), explicitly labelled
+  const tally={mu:0,huo:0,tu:0,jin:0,shui:0};
+  [ec.getYear(),ec.getMonth(),ec.getDay(),...(noTime?[]:[ec.getTime()])].forEach(gz=>{
+    tally[GAN_EL[ganChar(gz)]]++; tally[ZHI_EL[zhiChar(gz)]]++;
+  });
+  const total=Object.values(tally).reduce((a,b)=>a+b,0);
+  let bars=`<div class="bars">`;
+  ["mu","huo","tu","jin","shui"].forEach(e=>{
+    const n=tally[e], pct=total?Math.round(n/total*100):0;
+    bars+=`<div class="bar-row"><span class="lab ${elClass(e)}">${EL_NAME[e]}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${EL_COLOR[e]}"></span></span>
+      <span class="num">${n}</span></div>`;
+  });
+  bars+=`</div>`;
+  const missing=Object.keys(tally).filter(e=>tally[e]===0).map(e=>EL_CN[e]);
+
+  document.getElementById('v-natal').innerHTML = `
+    ${pan}
+    ${tstNote?`<div class="src">真太陽時 applied — ${tstNote}.</div>`:''}
+    ${noTime?`<div class="src">Hour pillar omitted because birth time was marked unknown. The hour pillar governs children &amp; late life and refines the chart; supply a time for the full reading.</div>`:''}
+
+    <div class="block">
+      <h3><span class="cjk">日主</span>Day Master</h3>
+      <div class="kv"><span class="k">Day Master (you)</span><span class="v"><span class="cjk ${elClass(dme)}">${dmg}</span> — ${EL_NAME[dme]}</span></div>
+      <div class="kv"><span class="k">Month branch (season)</span><span class="v"><span class="cjk ${elClass(monthEl)}">${monthZhi}</span> — ${EL_NAME[monthEl]}</span></div>
+      <div class="interp">Your core self is <em>${EL_NAME[dme]}</em>. At the season of birth, ${seasonFact}
+      In classical method, Day-Master strength weighs four things — season (得令), root in the branches (得地),
+      being generated (得生), and allies (得助). The structural facts above are shown rather than a single
+      invented "strength %"; a full verdict also weighs hidden stems and any combinations/clashes among the branches.</div>
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">五行</span>Five Elements — primary tally</h3>
+      ${bars}
+      <div class="interp">Count of the <em>eight characters' primary element (本氣)</em> only.
+      ${missing.length?`Absent from the visible stems/branches: <em>${missing.join('、')}</em> — classically read as an element to cultivate (it may still appear in hidden stems or in luck cycles).`:`All five elements appear among the eight characters.`}
+      This simple tally is a starting point, not the weighted strength analysis.</div>
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">十神</span>Ten Gods present</h3>
+      <div>${tenGodTags()}</div>
+      <div class="interp">${tenGodLines()}</div>
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">命宮</span>Reference points</h3>
+      <div class="kv"><span class="k">Tai Yuan 胎元 (conception)</span><span class="v cjk">${ec.getTaiYuan()}</span></div>
+      <div class="kv"><span class="k">Ming Gong 命宮 (life palace)</span><span class="v cjk">${ec.getMingGong()}</span></div>
+      <div class="kv"><span class="k">Shen Gong 身宮 (body palace)</span><span class="v cjk">${ec.getShenGong()}</span></div>
+      <div class="kv"><span class="k">Solar / Lunar date</span><span class="v">${solar.toYmd()} · <span class="cjk">${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}</span></span></div>
+      <div class="kv"><span class="k">Zodiac 生肖 · sign</span><span class="v"><span class="cjk">${lunar.getYearShengXiao()}</span> · ${solar.getXingZuo()}座</span></div>
+    </div>`;
+}
+function tenGodTags(){
+  const {ec,noTime}=chart;
+  const set=new Set();
+  [ec.getYearShiShenGan(),ec.getMonthShiShenGan(),...(noTime?[]:[ec.getTimeShiShenGan()])].forEach(s=>set.add(s));
+  [ec.getYearShiShenZhi(),ec.getMonthShiShenZhi(),ec.getDayShiShenZhi(),...(noTime?[]:[ec.getTimeShiShenZhi()])].forEach(a=>a.forEach(s=>set.add(s)));
+  return [...set].map(s=>`<span class="tag"><span class="cjk">${s}</span></span>`).join('');
+}
+function tenGodLines(){
+  const {ec,noTime}=chart;
+  const set=new Set();
+  [ec.getYearShiShenGan(),ec.getMonthShiShenGan(),...(noTime?[]:[ec.getTimeShiShenGan()])].forEach(s=>set.add(s));
+  [ec.getYearShiShenZhi(),ec.getMonthShiShenZhi(),ec.getDayShiShenZhi(),...(noTime?[]:[ec.getTimeShiShenZhi()])].forEach(a=>a.forEach(s=>set.add(s)));
+  return [...set].map(s=>SHISHEN[s]?`<div>• ${SHISHEN[s]}</div>`:'').join('');
+}
+
+/* ---------- RENDER: luck cycles ---------- */
+function renderLuck(){
+  const {yun,sex,solar}=chart;
+  const list=yun.getDaYun(9);
+  const nowY=new Date().getFullYear();
+  let html=`<div class="block"><h3><span class="cjk">大運</span>Decade luck cycles</h3>
+    <div class="interp" style="margin-top:0;margin-bottom:14px;">Direction: <em>${yun.isForward()?'forward 順行':'reverse 逆行'}</em>
+      (from sex + year-stem polarity). First decade begins at age <em>${yun.getStartYear()}y ${yun.getStartMonth()}m</em>.
+      Each pillar colours by its stem element; the highlighted one is active now.</div>
+    <div class="luck-grid">`;
+  list.forEach((d,i)=>{
+    const gz=d.getGanZhi();
+    if(!gz){ // first entry before luck starts (pre-luck 小運 period)
+      html+=`<div class="luck"><div class="gz cjk" style="font-size:14px;color:var(--paper-faint)">運前</div>
+        <div class="meta">age ${d.getStartAge()}–${d.getStartAge()+ (list[i+1]?list[i+1].getStartAge()-d.getStartAge()-1:0)}</div>
+        <div class="ssh">pre-luck</div></div>`;
+      return;
+    }
+    const g=ganChar(gz), ge=GAN_EL[g];
+    const isNow = nowY>=d.getStartYear() && nowY<=d.getEndYear();
+    html+=`<div class="luck ${isNow?'now':''}">
+      <div class="gz cjk ${elClass(ge)}">${gz}</div>
+      <div class="meta">${d.getStartYear()}–${d.getEndYear()}</div>
+      <div class="ssh">age ${d.getStartAge()}+</div>
+      ${isNow?'<div class="now-pill">NOW</div>':''}
+    </div>`;
+  });
+  html+=`</div></div>`;
+
+  // current decade detail vs natal day branch
+  const cur=list.find(d=>d.getGanZhi()&&nowY>=d.getStartYear()&&nowY<=d.getEndYear());
+  if(cur){
+    const {ec}=chart;
+    const lb=zhiChar(cur.getGanZhi()), natalDayZhi=zhiChar(ec.getDay());
+    const tags=relTags(lb,natalDayZhi,'Day branch');
+    const yearTags=relTags(lb,zhiChar(ec.getYear()),'Year branch');
+    html+=`<div class="block"><h3><span class="cjk">當運</span>Current decade — interactions with your chart</h3>
+      <div class="kv"><span class="k">Active luck pillar</span><span class="v cjk">${cur.getGanZhi()} (${cur.getStartYear()}–${cur.getEndYear()})</span></div>
+      <div style="margin-top:10px;">${(tags.concat(yearTags)).join('')||'<span class="empty">No clash / combination with your Year or Day branch this decade.</span>'}</div>
+      <div class="interp">A clash (沖) in the active decade traditionally marks movement, relocation or change in
+      the life-area of the affected pillar; a combination (合/三合) marks consolidation or partnership. These are
+      classical readings of the relationship — not predictions of specific events.</div></div>`;
+  }
+  document.getElementById('v-luck').innerHTML=html;
+}
+
+/* ---------- RENDER: today ---------- */
+function renderToday(){
+  const {ec}=chart, Solar=window.Solar;
+  const now=new Date();
+  const sToday=Solar.fromYmdHms(now.getFullYear(),now.getMonth()+1,now.getDate(),12,0,0);
+  const lToday=sToday.getLunar();
+  const dayGz=lToday.getDayInGanZhi(), monthGz=lToday.getMonthInGanZhi(), yearGz=lToday.getYearInGanZhi();
+  const dmg=ec.getDayGan();
+  // ten-god of today's day stem relative to your day master, via library on a fresh eightchar? use relation function
+  const tg=tenGodOf(dmg, ganChar(dayGz));
+  const natalDayZhi=zhiChar(ec.getDay());
+  const tags=relTags(zhiChar(dayGz),natalDayZhi,'your Day branch');
+  const yi=(lToday.getDayYi()||[]).slice(0,8), ji=(lToday.getDayJi()||[]).slice(0,8);
+  const star=lToday.getDayNineStar?lToday.getDayNineStar().toString():null;
+  const chong=lToday.getDayChongDesc?lToday.getDayChongDesc():null;
+  const xi=lToday.getDayPositionXiDesc?lToday.getDayPositionXiDesc():null;
+  const cai=lToday.getDayPositionCaiDesc?lToday.getDayPositionCaiDesc():null;
+  const g=ganChar(dayGz), z=zhiChar(dayGz);
+
+  document.getElementById('v-today').innerHTML=`
+    <div class="block">
+      <div class="today-head">
+        <span class="big cjk"><span class="${elClass(GAN_EL[g])}">${g}</span><span class="${elClass(ZHI_EL[z])}">${z}</span></span>
+        <span class="date">${sToday.toYmd()} · 農曆 <span class="cjk">${lToday.getMonthInChinese()}月${lToday.getDayInChinese()}</span></span>
+      </div>
+      <div class="kv"><span class="k">Today vs your Day Master <span class="cjk">${dmg}</span></span><span class="v"><span class="cjk">${tg||'—'}</span>${tg&&SHISHEN[tg]?'':''}</span></div>
+      ${tg&&SHISHEN[tg]?`<div class="interp" style="margin-top:6px;">${SHISHEN[tg]}</div>`:''}
+      <div style="margin-top:10px;">${tags.join('')||'<span class="empty">Today\u2019s branch neither clashes nor combines your Day branch.</span>'}</div>
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">黃曆</span>Almanac for today</h3>
+      <div class="yiji">
+        <div class="col yi"><div class="h">宜 · Favourable</div><div class="cjk">${yi.length?yi.join('、'):'<span style="font-style:italic">N/A</span>'}</div></div>
+        <div class="col ji"><div class="h">忌 · Avoid</div><div class="cjk">${ji.length?ji.join('、'):'<span style="font-style:italic">N/A</span>'}</div></div>
+      </div>
+      <div class="kv" style="margin-top:12px;"><span class="k">Clashes zodiac 沖</span><span class="v cjk">${chong||'N/A'}</span></div>
+      ${star?`<div class="kv"><span class="k">Nine Star 九星</span><span class="v cjk">${star}</span></div>`:''}
+      ${xi?`<div class="kv"><span class="k">Joy direction 喜神</span><span class="v cjk">${xi}</span></div>`:''}
+      ${cai?`<div class="kv"><span class="k">Wealth direction 財神</span><span class="v cjk">${cai}</span></div>`:''}
+      <div class="src">宜/忌 and directions are the traditional 老黃曆 values for the calendar day (engine: lunar-javascript),
+      shared by everyone today. The personal layer above is your Day-branch relationship with today's branch.</div>
+    </div>`;
+}
+/* ten-god of a stem relative to day master — derived from element relation + yin/yang */
+const GAN_YANG={"甲":1,"丙":1,"戊":1,"庚":1,"壬":1,"乙":0,"丁":0,"己":0,"辛":0,"癸":0};
+function tenGodOf(dm, other){
+  const de=GAN_EL[dm], oe=GAN_EL[other];
+  const sameYY = GAN_YANG[dm]===GAN_YANG[other];
+  if(oe===de) return sameYY?"比肩":"劫财";
+  if(GEN[de]===oe) return sameYY?"食神":"伤官";       // DM generates other = output
+  if(CTRL[de]===oe) return sameYY?"偏财":"正财";       // DM controls other = wealth
+  if(CTRL[oe]===de) return sameYY?"七杀":"正官";       // other controls DM = authority
+  if(GEN[oe]===de) return sameYY?"偏印":"正印";        // other generates DM = resource
+  return null;
+}
+
+/* ---------- RENDER: key dates (deterministic scan) ---------- */
+function renderDates(){
+  const {ec}=chart, Solar=window.Solar;
+  const natalDayZhi=zhiChar(ec.getDay()), natalYearZhi=zhiChar(ec.getYear());
+  const now=new Date();
+
+  // 1) Days: next 45 days clashing the natal Day branch
+  const dayEvents=[];
+  for(let i=0;i<45;i++){
+    const dt=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i);
+    const l=Solar.fromYmd(dt.getFullYear(),dt.getMonth()+1,dt.getDate()).getLunar();
+    const z=zhiChar(l.getDayInGanZhi());
+    if(clashOf(natalDayZhi)===z) dayEvents.push({dt,gz:l.getDayInGanZhi(),rel:'沖 clashes your Day branch '+natalDayZhi+' — traditionally a restless / pivotal day; avoid major irreversible commitments.'});
+    else if(sanHeOf(natalDayZhi).includes(z) && dayEvents.length<6) dayEvents.push({dt,gz:l.getDayInGanZhi(),rel:'三合 trine with your Day branch — classically smooth, good for cooperation.'});
+  }
+
+  // 2) Years: this year + next 12, clash/combine with natal Year or Day branch
+  const yearEvents=[];
+  const y0=now.getFullYear();
+  for(let y=y0;y<=y0+12;y++){
+    // year ganzhi by Li Chun — use a date safely after Li Chun (Mar 1) to read the year pillar
+    const l=Solar.fromYmd(y,3,1).getLunar();
+    const yz=zhiChar(l.getYearInGanZhi());
+    const hits=[];
+    if(yz===natalYearZhi) hits.push('本命年 — your zodiac year (值太歲): classically a year for prudence and renewal.');
+    if(clashOf(natalYearZhi)===yz) hits.push('沖太歲 — clashes your Year branch '+natalYearZhi+': a watched year of change, travel or transition.');
+    if(clashOf(natalDayZhi)===yz) hits.push('沖日支 — clashes your Day branch '+natalDayZhi+': affects self / partnership sphere.');
+    if(LIU_HE[natalYearZhi]===yz || sanHeOf(natalYearZhi).includes(yz)) hits.push('合太歲 — combines your Year branch: consolidation, alliances.');
+    if(hits.length) yearEvents.push({y,gz:l.getYearInGanZhi(),hits});
+  }
+
+  let html=`<div class="block"><h3><span class="cjk">流年</span>Years to watch (next 12)</h3>`;
+  if(yearEvents.length){
+    yearEvents.forEach(e=>{
+      html+=`<div class="event"><div class="when">${e.y}<small class="cjk">${e.gz}年</small></div>
+        <div class="what">${e.hits.join('<br>')}</div></div>`;
+    });
+  } else html+=`<div class="empty">No major clash / combination between the coming years and your Year or Day branch.</div>`;
+  html+=`<div class="src">A "clash with 太歲 (the year)" is the classical marker of an eventful year — change, not doom.
+    What it touches depends on the pillar and the active luck cycle.</div></div>`;
+
+  html+=`<div class="block"><h3><span class="cjk">流日</span>Days to watch (next 45)</h3>`;
+  if(dayEvents.length){
+    dayEvents.sort((a,b)=>a.dt-b.dt).forEach(e=>{
+      const ds=`${e.dt.getFullYear()}-${String(e.dt.getMonth()+1).padStart(2,'0')}-${String(e.dt.getDate()).padStart(2,'0')}`;
+      html+=`<div class="event"><div class="when">${ds}<small class="cjk">${e.gz}日</small></div>
+        <div class="what">${e.rel}</div></div>`;
+    });
+  } else html+=`<div class="empty">No Day-branch clash or trine in the next 45 days.</div>`;
+  html+=`<div class="src">Day-level scan compares each day's branch with your natal Day branch only
+    (six-clash 六沖 and three-harmony 三合). It is a relationship map, not a forecast of events.</div></div>`;
+
+  document.getElementById('v-dates').innerHTML=html;
+}
+
+/* ---------- wiring ---------- */
+document.getElementById('advBtn').addEventListener('click',()=>{
+  document.getElementById('adv').classList.toggle('open');
+});
+document.getElementById('noTime').addEventListener('change',e=>{
+  document.getElementById('btime').disabled=e.target.checked;
+});
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('v-'+t.dataset.v).classList.add('active');
+}));
+document.getElementById('go').addEventListener('click',async()=>{
+  const err=document.getElementById('err'); err.classList.add('hidden');
+  try{
+    await window.__lunarReady;
+    if(typeof window.Solar==='undefined') throw new Error("Calculation engine failed to load. Check your connection, or place lunar.js beside this file.");
+    chart=buildChart();
+    renderNatal(); renderLuck(); renderToday(); renderDates();
+    document.getElementById('results').classList.remove('hidden');
+    document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){
+    err.textContent=e.message||String(e); err.classList.remove('hidden');
+  }
+});
+
+/* service worker — registers on a real host (GitHub Pages); silently no-ops in sandboxes */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load',()=>{navigator.serviceWorker.register('service-worker.js').catch(()=>{});});
+}
+</script>
+</body>
+</html>
