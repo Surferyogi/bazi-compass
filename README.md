@@ -45,7 +45,7 @@ The engine loads from the jsDelivr CDN first (so it works in any preview) and **
   the Ten-God logic in this app was cross-checked against the engine's own output on 600 stem comparisons (0 mismatches).
 
 ## Version
-App version is stamped in the footer as `vYYYY:MM:DD-HH:MM`. Current build: **v2026:06:13-12:00**.
+App version is stamped in the footer as `vYYYY:MM:DD-HH:MM`. Current build: **v2026:06:14-02:00**.
 (The HH:MM segment is a same-day build sequence marker, not a wall-clock claim.)
 
 ---

@@ -81,6 +81,9 @@
   .glyph{font-family:"Noto Serif SC";font-weight:600;font-size:34px;line-height:1.18;padding:6px 0 0;}
   .glyph.zhi{padding:0 0 8px;}
   .sub{font-size:10.5px;color:var(--paper-faint);padding:0 6px 2px;min-height:15px;}
+  .en-cap{font-family:"Spectral";font-size:10px;letter-spacing:.06em;color:var(--paper-dim);
+    padding:1px 4px 4px;line-height:1.25;}
+  .en-inline{font-family:"Spectral";font-size:.82em;color:var(--paper-faint);letter-spacing:.02em;}
   .hide{font-family:"Noto Serif SC";font-size:13px;color:var(--paper-dim);padding:7px 4px;border-top:1px solid var(--line);}
   .hide small{display:block;font-family:"Spectral";font-size:9px;letter-spacing:.14em;color:var(--paper-faint);text-transform:uppercase;margin-bottom:3px;}
   .dm-badge{display:inline-block;font-size:9px;background:var(--cinnabar);color:#f6ecda;border-radius:5px;
@@ -241,7 +244,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:13-12:00";
+const VERSION = "v2026:06:14-02:00";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -283,6 +286,58 @@ const DISHI = { // 十二長生 — strength stage of the day stem in each branc
   "死":"Death — least vigour.","墓":"Tomb — stored, latent.","绝":"Cut-off — empty, a turning point.",
   "胎":"Conception — potential forming.","养":"Nurture — gathering before growth."
 };
+
+/* ---------- English glosses ----------
+   Bounded sets (10 stems, 12 branches, 10 Ten Gods) use these verified fixed tables.
+   Open-ended sets (Na Yin names, daily 宜/忌) are taken from the ENGINE's own English
+   i18n via withEnglish() — a trusted source, not hand-typed — so nothing is invented. */
+const STEM_EN={"甲":"Yang Wood","乙":"Yin Wood","丙":"Yang Fire","丁":"Yin Fire","戊":"Yang Earth",
+  "己":"Yin Earth","庚":"Yang Metal","辛":"Yin Metal","壬":"Yang Water","癸":"Yin Water"};
+const BRANCH_EN={"子":"Rat · Water","丑":"Ox · Earth","寅":"Tiger · Wood","卯":"Rabbit · Wood",
+  "辰":"Dragon · Earth","巳":"Snake · Fire","午":"Horse · Fire","未":"Goat · Earth",
+  "申":"Monkey · Metal","酉":"Rooster · Metal","戌":"Dog · Earth","亥":"Pig · Water"};
+const SHISHEN_SHORT={"比肩":"Companion","劫财":"Rival","食神":"Output · gentle","伤官":"Output · sharp",
+  "偏财":"Wealth · indirect","正财":"Wealth · direct","七杀":"Power","正官":"Authority",
+  "偏印":"Resource · indirect","正印":"Resource · direct"};
+const ANIMAL_EN={"鼠":"Rat","牛":"Ox","虎":"Tiger","兔":"Rabbit","龙":"Dragon","蛇":"Snake",
+  "马":"Horse","羊":"Goat","猴":"Monkey","鸡":"Rooster","狗":"Dog","猪":"Pig"};
+const SIGN_EN={"白羊":"Aries","金牛":"Taurus","双子":"Gemini","巨蟹":"Cancer","狮子":"Leo","处女":"Virgo",
+  "天秤":"Libra","天蝎":"Scorpio","射手":"Sagittarius","摩羯":"Capricorn","水瓶":"Aquarius","双鱼":"Pisces"};
+const DIR_EN={"东":"E","南":"S","西":"W","北":"N","中":"Centre",
+  "东南":"SE","东北":"NE","西南":"SW","西北":"NW","正东":"E","正南":"S","正西":"W","正北":"N"};
+const spaceCaps=s=>String(s||"").replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g,'$1 $2');
+function dirEN(s){ if(!s) return ""; return DIR_EN[s]||s; }
+function ganzhiEN(gz){ if(!gz||gz.length<2) return ""; return (STEM_EN[gz[0]]||"")+" · "+(BRANCH_EN[gz[1]]||"").split(" · ")[0]; }
+
+/* Run a function with the engine temporarily in English, then restore Chinese. */
+function withEnglish(fn){
+  const I=window.I18n; if(!I) return fn();
+  const prev=I.getLanguage(); I.setLanguage('en');
+  let r; try{ r=fn(); } finally { I.setLanguage(prev); }
+  return r;
+}
+/* Lazily built map: Chinese Na Yin name -> engine English (spaced). */
+let NAYIN_EN=null;
+function ensureNaYinMap(){
+  if(NAYIN_EN) return; NAYIN_EN={};
+  const Solar=window.Solar; if(!Solar) return;
+  for(let i=0;i<70;i++){
+    const dt=new Date(2025,0,1+i);
+    const zh=Solar.fromYmdHms(dt.getFullYear(),dt.getMonth()+1,dt.getDate(),10,0,0).getLunar().getEightChar().getDayNaYin();
+    if(NAYIN_EN[zh]) continue;
+    const en=withEnglish(()=>Solar.fromYmdHms(dt.getFullYear(),dt.getMonth()+1,dt.getDate(),10,0,0).getLunar().getEightChar().getDayNaYin());
+    NAYIN_EN[zh]=spaceCaps(en);
+  }
+}
+function nayinEN(zh){ ensureNaYinMap(); return (NAYIN_EN&&NAYIN_EN[zh])?NAYIN_EN[zh]:""; }
+function nayinDual(zh){ const en=nayinEN(zh); return en?`${zh} <span class="en-inline">(${en})</span>`:zh; }
+function dishiDual(zh){ const d=DISHI[zh]; return d?`${zh} <span class="en-inline">(${d.split(' — ')[0]})</span>`:(zh||'—'); }
+function tgEn(s){ return SHISHEN_SHORT[s]?`<span class="en-inline">${SHISHEN_SHORT[s]}</span>`:''; }
+function tgWithEn(v){
+  if(Array.isArray(v)) return v.filter(x=>x).map(x=>`${x} ${tgEn(x)}`).join(' / ')||'—';
+  if(v==="日主") return v;
+  return v?`${v} ${tgEn(v)}`:'—';
+}
 
 /* ---------- equation of time (NOAA standard approximation, minutes) ---------- */
 function equationOfTimeMin(date){
@@ -359,12 +414,14 @@ function renderNatal(){
     const ge=GAN_EL[g], ze=ZHI_EL[z];
     pan+=`<div class="pillar">
       <div class="cap">${p.cap}<span class="zh cjk">${p.zh.split(' · ')[0]}</span></div>
-      <div class="sub">${p.isDay?'<span class="dm-badge">DAY MASTER</span>':(Array.isArray(p.ssg)?p.ssg.join(' '):p.ssg)}</div>
+      <div class="sub">${p.isDay?'<span class="dm-badge">DAY MASTER</span>':tgWithEn(p.ssg)}</div>
       <div class="glyph ${elClass(ge)} cjk">${g}</div>
+      <div class="en-cap">${STEM_EN[g]||''}</div>
       <div class="glyph zhi ${elClass(ze)} cjk">${z}</div>
-      <div class="sub">${(p.ssz||[]).join(' / ')}</div>
-      <div class="hide"><small>hidden 藏干</small>${(p.hide||[]).map(x=>`<span class="${elClass(GAN_EL[x])}">${x}</span>`).join(' ')}</div>
-      <div class="hide"><small>na yin · 12-stage</small>${p.ny} · ${p.ds||'—'}</div>
+      <div class="en-cap">${BRANCH_EN[z]||''}</div>
+      <div class="sub">${tgWithEn(p.ssz)}</div>
+      <div class="hide"><small>hidden 藏干 · hidden stems</small>${(p.hide||[]).map(x=>`<span class="${elClass(GAN_EL[x])}">${x}</span> <span class="en-inline">${STEM_EN[x]||''}</span>`).join('<br>')}</div>
+      <div class="hide"><small>na yin 納音 · 12-stage</small>${nayinDual(p.ny)}<br>${dishiDual(p.ds)}</div>
     </div>`;
   });
   pan+=`</div>`;
@@ -429,11 +486,11 @@ function renderNatal(){
 
     <div class="block">
       <h3><span class="cjk">命宮</span>Reference points</h3>
-      <div class="kv"><span class="k">Tai Yuan 胎元 (conception)</span><span class="v cjk">${ec.getTaiYuan()}</span></div>
-      <div class="kv"><span class="k">Ming Gong 命宮 (life palace)</span><span class="v cjk">${ec.getMingGong()}</span></div>
-      <div class="kv"><span class="k">Shen Gong 身宮 (body palace)</span><span class="v cjk">${ec.getShenGong()}</span></div>
+      <div class="kv"><span class="k">Tai Yuan 胎元 (conception)</span><span class="v"><span class="cjk">${ec.getTaiYuan()}</span> <span class="en-inline">${ganzhiEN(ec.getTaiYuan())}</span></span></div>
+      <div class="kv"><span class="k">Ming Gong 命宮 (life palace)</span><span class="v"><span class="cjk">${ec.getMingGong()}</span> <span class="en-inline">${ganzhiEN(ec.getMingGong())}</span></span></div>
+      <div class="kv"><span class="k">Shen Gong 身宮 (body palace)</span><span class="v"><span class="cjk">${ec.getShenGong()}</span> <span class="en-inline">${ganzhiEN(ec.getShenGong())}</span></span></div>
       <div class="kv"><span class="k">Solar / Lunar date</span><span class="v">${solar.toYmd()} · <span class="cjk">${lunar.getYearInChinese()}年${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}</span></span></div>
-      <div class="kv"><span class="k">Zodiac 生肖 · sign</span><span class="v"><span class="cjk">${lunar.getYearShengXiao()}</span> · ${solar.getXingZuo()}座</span></div>
+      <div class="kv"><span class="k">Zodiac 生肖 · sign</span><span class="v"><span class="cjk">${lunar.getYearShengXiao()}</span> <span class="en-inline">${ANIMAL_EN[lunar.getYearShengXiao()]||''}</span> · ${solar.getXingZuo()}座 <span class="en-inline">(${SIGN_EN[solar.getXingZuo()]||''})</span></span></div>
     </div>`;
 }
 function tenGodTags(){
@@ -441,7 +498,7 @@ function tenGodTags(){
   const set=new Set();
   [ec.getYearShiShenGan(),ec.getMonthShiShenGan(),...(noTime?[]:[ec.getTimeShiShenGan()])].forEach(s=>set.add(s));
   [ec.getYearShiShenZhi(),ec.getMonthShiShenZhi(),ec.getDayShiShenZhi(),...(noTime?[]:[ec.getTimeShiShenZhi()])].forEach(a=>a.forEach(s=>set.add(s)));
-  return [...set].map(s=>`<span class="tag"><span class="cjk">${s}</span></span>`).join('');
+  return [...set].map(s=>`<span class="tag"><span class="cjk">${s}</span> ${tgEn(s)}</span>`).join('');
 }
 function tenGodLines(){
   const {ec,noTime}=chart;
@@ -473,6 +530,7 @@ function renderLuck(){
     const isNow = nowY>=d.getStartYear() && nowY<=d.getEndYear();
     html+=`<div class="luck ${isNow?'now':''}">
       <div class="gz cjk ${elClass(ge)}">${gz}</div>
+      <div class="ssh">${STEM_EN[g]||''} · ${(BRANCH_EN[zhiChar(gz)]||'').split(' · ')[0]}</div>
       <div class="meta">${d.getStartYear()}–${d.getEndYear()}</div>
       <div class="ssh">age ${d.getStartAge()}+</div>
       ${isNow?'<div class="now-pill">NOW</div>':''}
@@ -510,8 +568,12 @@ function renderToday(){
   const natalDayZhi=zhiChar(ec.getDay());
   const tags=relTags(zhiChar(dayGz),natalDayZhi,'your Day branch');
   const yi=(lToday.getDayYi()||[]).slice(0,8), ji=(lToday.getDayJi()||[]).slice(0,8);
+  const yiEn=withEnglish(()=>(lToday.getDayYi()||[]).slice(0,8));
+  const jiEn=withEnglish(()=>(lToday.getDayJi()||[]).slice(0,8));
   const star=lToday.getDayNineStar?lToday.getDayNineStar().toString():null;
+  const starEn=lToday.getDayNineStar?spaceCaps(withEnglish(()=>lToday.getDayNineStar().toString())):null;
   const chong=lToday.getDayChongDesc?lToday.getDayChongDesc():null;
+  const chongAnimal=chong?ANIMAL_EN[chong.slice(-1)]:null;
   const xi=lToday.getDayPositionXiDesc?lToday.getDayPositionXiDesc():null;
   const cai=lToday.getDayPositionCaiDesc?lToday.getDayPositionCaiDesc():null;
   const g=ganChar(dayGz), z=zhiChar(dayGz);
@@ -520,9 +582,10 @@ function renderToday(){
     <div class="block">
       <div class="today-head">
         <span class="big cjk"><span class="${elClass(GAN_EL[g])}">${g}</span><span class="${elClass(ZHI_EL[z])}">${z}</span></span>
-        <span class="date">${sToday.toYmd()} · 農曆 <span class="cjk">${lToday.getMonthInChinese()}月${lToday.getDayInChinese()}</span></span>
+        <span class="date">${sToday.toYmd()} · 農曆 <span class="cjk">${lToday.getMonthInChinese()}月${lToday.getDayInChinese()}</span> <span class="en-inline">(lunar month ${lToday.getMonth()}, day ${lToday.getDay()})</span></span>
       </div>
-      <div class="kv"><span class="k">Today vs your Day Master <span class="cjk">${dmg}</span></span><span class="v"><span class="cjk">${tg||'—'}</span>${tg&&SHISHEN[tg]?'':''}</span></div>
+      <div class="en-cap" style="padding-left:0;margin:-2px 0 6px;">${STEM_EN[g]||''} · ${BRANCH_EN[z]||''}</div>
+      <div class="kv"><span class="k">Today vs your Day Master <span class="cjk">${dmg}</span> <span class="en-inline">${STEM_EN[dmg]||''}</span></span><span class="v"><span class="cjk">${tg||'—'}</span> <span class="en-inline">${tg?(SHISHEN_SHORT[tg]||''):''}</span></span></div>
       ${tg&&SHISHEN[tg]?`<div class="interp" style="margin-top:6px;">${SHISHEN[tg]}</div>`:''}
       <div style="margin-top:10px;">${tags.join('')||'<span class="empty">Today\u2019s branch neither clashes nor combines your Day branch.</span>'}</div>
     </div>
@@ -530,15 +593,19 @@ function renderToday(){
     <div class="block">
       <h3><span class="cjk">黃曆</span>Almanac for today</h3>
       <div class="yiji">
-        <div class="col yi"><div class="h">宜 · Favourable</div><div class="cjk">${yi.length?yi.join('、'):'<span style="font-style:italic">N/A</span>'}</div></div>
-        <div class="col ji"><div class="h">忌 · Avoid</div><div class="cjk">${ji.length?ji.join('、'):'<span style="font-style:italic">N/A</span>'}</div></div>
+        <div class="col yi"><div class="h">宜 · Favourable</div>
+          <div class="cjk">${yi.length?yi.join('、'):'<span style="font-style:italic">N/A</span>'}</div>
+          ${yiEn.length?`<div class="en-inline" style="margin-top:4px;display:block;">${yiEn.join(' · ')}</div>`:''}</div>
+        <div class="col ji"><div class="h">忌 · Avoid</div>
+          <div class="cjk">${ji.length?ji.join('、'):'<span style="font-style:italic">N/A</span>'}</div>
+          ${jiEn.length?`<div class="en-inline" style="margin-top:4px;display:block;">${jiEn.join(' · ')}</div>`:''}</div>
       </div>
-      <div class="kv" style="margin-top:12px;"><span class="k">Clashes zodiac 沖</span><span class="v cjk">${chong||'N/A'}</span></div>
-      ${star?`<div class="kv"><span class="k">Nine Star 九星</span><span class="v cjk">${star}</span></div>`:''}
-      ${xi?`<div class="kv"><span class="k">Joy direction 喜神</span><span class="v cjk">${xi}</span></div>`:''}
-      ${cai?`<div class="kv"><span class="k">Wealth direction 財神</span><span class="v cjk">${cai}</span></div>`:''}
+      <div class="kv" style="margin-top:12px;"><span class="k">Clashes zodiac 沖</span><span class="v"><span class="cjk">${chong||'N/A'}</span> <span class="en-inline">${chongAnimal?('clashes '+chongAnimal):''}</span></span></div>
+      ${star?`<div class="kv"><span class="k">Nine Star 九星</span><span class="v"><span class="cjk">${star}</span> <span class="en-inline">${starEn||''}</span></span></div>`:''}
+      ${xi?`<div class="kv"><span class="k">Joy direction 喜神</span><span class="v"><span class="cjk">${xi}</span> <span class="en-inline">${dirEN(xi)}</span></span></div>`:''}
+      ${cai?`<div class="kv"><span class="k">Wealth direction 財神</span><span class="v"><span class="cjk">${cai}</span> <span class="en-inline">${dirEN(cai)}</span></span></div>`:''}
       <div class="src">宜/忌 and directions are the traditional 老黃曆 values for the calendar day (engine: lunar-javascript),
-      shared by everyone today. The personal layer above is your Day-branch relationship with today's branch.</div>
+      shared by everyone today. English terms are the engine's own translations. The personal layer above is your Day-branch relationship with today's branch.</div>
     </div>`;
 }
 /* ten-god of a stem relative to day master — derived from element relation + yin/yang */
