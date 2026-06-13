@@ -117,7 +117,19 @@
   .tag.harm{border-color:rgba(191,154,82,.5);color:#e0c98c;background:rgba(191,154,82,.08);}
   .interp{font-size:13.5px;color:var(--paper-dim);line-height:1.6;margin-top:8px;}
   .interp em{color:var(--paper);font-style:normal;font-weight:600;}
-  /* luck pillars */
+  /* yong shen panel */
+  .ys-method{background:var(--ink-2);border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin:10px 0;}
+  .ys-h{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;font-family:"Spectral";}
+  .ys-choose{background:linear-gradient(180deg,rgba(95,156,111,.08),transparent);border:1px solid rgba(95,156,111,.3);border-radius:11px;padding:13px;margin-top:14px;}
+  .el-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .el-btn{flex:1 1 auto;min-width:84px;background:var(--ink-2);border:1px solid var(--line);border-radius:9px;
+    padding:10px 6px;font-family:"Noto Serif SC";font-size:17px;cursor:pointer;transition:all .12s;color:var(--paper-dim);}
+  .el-btn .en-inline{display:block;font-size:9px;margin-top:2px;}
+  .el-btn.on{border-width:2px;background:var(--card-2);color:var(--paper);box-shadow:0 0 0 1px currentColor inset;}
+  .el-btn.e-mu.on{border-color:var(--mu)} .el-btn.e-huo.on{border-color:var(--huo)} .el-btn.e-tu.on{border-color:var(--tu)}
+  .el-btn.e-jin.on{border-color:var(--jin)} .el-btn.e-shui.on{border-color:var(--shui)}
+  .fav-yes{font-size:10px;color:#9fcba9;letter-spacing:.04em;}
+  .fav-no{font-size:10px;color:#e7a59c;letter-spacing:.04em;}
   .luck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:9px;}
   .luck{background:var(--card-2);border:1px solid var(--line);border-radius:11px;padding:10px 6px;text-align:center;}
   .luck.now{border-color:var(--cinnabar);box-shadow:0 0 0 1px var(--cinnabar) inset;}
@@ -244,7 +256,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-02:00";
+const VERSION = "v2026:06:14-03:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -259,6 +271,14 @@ const EL_COLOR= {mu:"var(--mu)",huo:"var(--huo)",tu:"var(--tu)",jin:"var(--jin)"
 // generating cycle 木→火→土→金→水→木 ; controlling 木→土→水→火→金→木
 const GEN = {mu:"huo",huo:"tu",tu:"jin",jin:"shui",shui:"mu"};
 const CTRL= {mu:"tu",tu:"shui",shui:"huo",huo:"jin",jin:"mu"};
+// Derived element roles relative to a Day-Master element (used for 用神 analysis).
+const RESOURCE_OF={mu:"shui",huo:"mu",tu:"huo",jin:"tu",shui:"jin"}; // 印 — generates the DM
+const POWER_OF   ={mu:"jin",huo:"shui",tu:"mu",jin:"huo",shui:"tu"};  // 官殺 — controls the DM
+// OUTPUT_OF = GEN (食傷, DM generates) ; WEALTH_OF = CTRL (財, DM controls) ; COMPANION = same element
+// Standard 五行 correspondences (verifiable, not interpretive predictions)
+const DIR_OF_EL  ={mu:"East",huo:"South",tu:"Centre",jin:"West",shui:"North"};
+const COLOR_OF_EL={mu:"greens / teal",huo:"reds / purple / orange",tu:"yellows / earth-brown",jin:"white / metallic / pale gold",shui:"black / deep blue"};
+const SEASON_OF_EL={mu:"spring",huo:"summer",tu:"late-season / transitions",jin:"autumn",shui:"winter"};
 // 六合 pairs / 三合 groups / 六害 pairs
 const LIU_HE = {"子":"丑","丑":"子","寅":"亥","亥":"寅","卯":"戌","戌":"卯","辰":"酉","酉":"辰","巳":"申","申":"巳","午":"未","未":"午"};
 const SAN_HE = [["申","子","辰"],["亥","卯","未"],["寅","午","戌"],["巳","酉","丑"]];
@@ -399,6 +419,178 @@ function relTags(branch, natalBranch, label){
 }
 
 /* ---------- RENDER: natal ---------- */
+/* ---------- 用神 (favourable element) analysis ----------
+   Three classical methods, each shown with ITS OWN inputs. No method is declared
+   "the" answer — the user (or their practitioner) chooses. Strength uses transparent
+   signals + a stated simple count, never a fabricated percentage. */
+let chosenYongShen = null; // array of favourable element keys, set by the chooser
+
+function elementTally8(ec, noTime){
+  const t={mu:0,huo:0,tu:0,jin:0,shui:0};
+  [ec.getYear(),ec.getMonth(),ec.getDay(),...(noTime?[]:[ec.getTime()])].forEach(gz=>{
+    t[GAN_EL[gz[0]]]++; t[ZHI_EL[gz[1]]]++;
+  });
+  return t;
+}
+function analyzeYongShen(){
+  const {ec,noTime}=chart;
+  const dme=GAN_EL[ec.getDayGan()];
+  const monthEl=ZHI_EL[zhiChar(ec.getMonth())];
+  const monthZhi=zhiChar(ec.getMonth());
+
+  // roles relative to DM
+  const companion=dme, resource=RESOURCE_OF[dme], output=GEN[dme], wealth=CTRL[dme], power=POWER_OF[dme];
+  const supportSet=[companion,resource];          // strengthen a weak DM (比劫+印)
+  const drainSet=[output,wealth,power];            // reduce a strong DM (食傷+財+官殺)
+
+  // --- 扶抑 signals ---
+  // 1) 得令 in season: month element same as DM or generates DM
+  const deLing = (monthEl===dme) || (monthEl===resource);
+  // 2) 得地 rooted: any branch hidden stem shares the DM element (通根)
+  const hideAll=[ec.getYearHideGan(),ec.getMonthHideGan(),ec.getDayHideGan(),...(noTime?[]:[ec.getTimeHideGan()])];
+  const rootBranches=[];
+  const branchNames=['Year','Month','Day',...(noTime?[]:['Hour'])];
+  hideAll.forEach((arr,i)=>{ if((arr||[]).some(s=>GAN_EL[s]===dme)) rootBranches.push(branchNames[i]); });
+  const rooted = rootBranches.length>0;
+  // 3) support vs drain count (8-char primaries, same simple basis as the element tally)
+  const tally=elementTally8(ec,noTime);
+  const supportCount=supportSet.reduce((a,e)=>a+tally[e],0);
+  const drainCount=drainSet.reduce((a,e)=>a+tally[e],0);
+
+  let score=0;
+  score += deLing?1:-1;
+  score += rooted?1:-1;
+  if(supportCount>drainCount) score+=1; else if(drainCount>supportCount) score-=1;
+  const leaning = score>=1?'strong':(score<=-1?'weak':'borderline');
+
+  let fuyiFavour, fuyiNote;
+  if(leaning==='strong'){ fuyiFavour=drainSet.slice(); fuyiNote='A strong Day Master is best served by elements that <em>express, spend or govern</em> it — Output (食傷), Wealth (財) and Power (官殺). A practitioner narrows these to the one or two most needed.'; }
+  else if(leaning==='weak'){ fuyiFavour=supportSet.slice(); fuyiNote='A weak Day Master is best served by elements that <em>support</em> it — Resource (印, which generates it) and Companion (比劫, its own element).'; }
+  else { fuyiFavour=null; fuyiNote='The strength signals are split, so 扶抑 is <em>genuinely inconclusive</em> for this chart — exactly the case where schools disagree. Treat 调候 and your own judgement as decisive.'; }
+
+  // --- 调候 climatic principle (season-based; the per-Day-Master 穷通宝鉴 lookup is a further refinement, not encoded) ---
+  const cold=['亥','子','丑'], hot=['巳','午','未'];
+  let climateFavour=null, climateNote, season;
+  if(cold.includes(monthZhi)){ climateFavour=['huo']; season='cold (winter)'; climateNote='Born in a <em>cold</em> month, the classic climatic rule wants <em>Fire (火)</em> for warmth, often with Wood to feed it — regardless of strength.'; }
+  else if(hot.includes(monthZhi)){ climateFavour=['shui']; season='hot (summer)'; climateNote='Born in a <em>hot</em> month, the climatic rule wants <em>Water (水)</em> to cool and moisten, often with Metal to source it — regardless of strength.'; }
+  else { season='temperate (spring/autumn)'; climateNote='Born in a temperate month, climatic adjustment is usually <em>secondary</em> to the strength method here. The full per-Day-Master 穷通宝鉴 lookup (a known refinement) is not encoded, so no climatic 用神 is asserted — shown as N/A rather than guessed.'; }
+
+  // --- 通关 mediation (only when two opposed elements both dominate) ---
+  let tgMediator=null, tgNote='No single pair of opposed elements dominates the chart, so 通关 (mediation) is not the primary method here.';
+  const els=['mu','huo','tu','jin','shui'];
+  let best=null;
+  els.forEach(X=>els.forEach(Y=>{ if(CTRL[X]===Y && tally[X]>=2 && tally[Y]>=2){ const strength=tally[X]+tally[Y]; if(!best||strength>best.s) best={X,Y,s:strength}; }}));
+  if(best){ tgMediator=GEN[best.X]; tgNote=`<em>${EL_CN[best.X]}</em> strongly controls <em>${EL_CN[best.Y]}</em> in the chart; the mediating element <em>${EL_CN[tgMediator]} (${EL_NAME[tgMediator]})</em> drains the attacker and feeds the attacked, easing the clash.`; }
+
+  return {dme,monthEl,monthZhi,companion,resource,output,wealth,power,
+    deLing,rooted,rootBranches,supportCount,drainCount,leaning,fuyiFavour,fuyiNote,
+    season,climateFavour,climateNote,tgMediator,tgNote,tally};
+}
+
+function elBtns(activeSet){
+  return ['mu','huo','tu','jin','shui'].map(e=>{
+    const on=(activeSet||[]).includes(e);
+    return `<button class="el-btn ${on?'on':''} ${elClass(e)}" data-el="${e}">${EL_CN[e]} <span class="en-inline">${EL_NAME[e].split(' ')[0]}</span></button>`;
+  }).join('');
+}
+function renderYongShen(){
+  const a=analyzeYongShen();
+  const suggest = a.fuyiFavour || a.climateFavour || [];
+  // method recommendation chips
+  const favChip = arr => arr&&arr.length?arr.map(e=>`<span class="tag he"><span class="cjk">${EL_CN[e]}</span> ${EL_NAME[e].split(' ')[0]}</span>`).join(''):'<span class="empty">Inconclusive — N/A</span>';
+  const sig = (ok,label) => `<span class="tag ${ok?'he':'clash'}">${ok?'✓':'✕'} ${label}</span>`;
+
+  const chosen = chosenYongShen;
+  let personalize='';
+  if(chosen&&chosen.length){
+    const avoid=['mu','huo','tu','jin','shui'].filter(e=>!chosen.includes(e));
+    personalize=`<div class="block" style="border-color:rgba(95,156,111,.35);">
+      <h3><span class="cjk">喜用</span>Your chosen favourable elements</h3>
+      <div>${chosen.map(e=>`<span class="tag he"><span class="cjk">${EL_CN[e]}</span> ${EL_NAME[e]}</span>`).join('')}</div>
+      <div class="kv" style="margin-top:8px;"><span class="k">Favourable directions</span><span class="v">${chosen.map(e=>DIR_OF_EL[e]).join(' · ')}</span></div>
+      <div class="kv"><span class="k">Favourable colours</span><span class="v">${chosen.map(e=>COLOR_OF_EL[e]).join('; ')}</span></div>
+      <div class="kv"><span class="k">Elements to avoid / minimise</span><span class="v">${avoid.map(e=>EL_CN[e]).join('、')}</span></div>
+      <div class="interp">Your luck cycles, key years and today's reading are now marked
+        <span style="color:#9fcba9">favourable ✓</span> or <span style="color:#e7a59c">draining ✕</span> against this choice.
+        Directions and colours are the standard 五行 correspondences — a common bridge to feng-shui choices.</div>
+    </div>`;
+  }
+
+  return `<div class="block">
+      <h3><span class="cjk">用神</span>Favourable element — three classical methods</h3>
+      <div class="interp" style="margin-top:0;">This is the keystone of a personal reading, and the one place
+        practitioners legitimately <em>disagree</em>. Below are three methods with their actual inputs. The app does
+        <em>not</em> pick for you — review them and choose, or follow your own practitioner.</div>
+
+      <div class="ys-method">
+        <div class="ys-h">扶抑 · Strength method</div>
+        <div style="margin:6px 0 8px;">
+          ${sig(a.deLing,'得令 in season')} ${sig(a.rooted,'得地 rooted'+(a.rooted?' ('+a.rootBranches.join('/')+')':''))}
+          ${sig(a.supportCount>a.drainCount,`count: support ${a.supportCount} vs drain ${a.drainCount}`)}
+        </div>
+        <div class="kv"><span class="k">Day-Master lean</span><span class="v"><em style="color:${a.leaning==='borderline'?'var(--tu)':a.leaning==='strong'?'var(--huo)':'var(--shui)'}">${a.leaning==='borderline'?'borderline / ambiguous':a.leaning+'-leaning'}</em></span></div>
+        <div style="margin-top:6px;">Favours: ${favChip(a.fuyiFavour)}</div>
+        <div class="interp">${a.fuyiNote} <span class="src" style="display:block;margin-top:4px;">Lean is the majority of three signals; the count uses the eight characters' primary element only, the same simple basis as the tally — schools weight the month more heavily.</span></div>
+      </div>
+
+      <div class="ys-method">
+        <div class="ys-h">调候 · Climatic method</div>
+        <div class="kv"><span class="k">Birth-month climate</span><span class="v"><span class="cjk">${a.monthZhi}月</span> — ${a.season}</span></div>
+        <div style="margin-top:6px;">Favours: ${favChip(a.climateFavour)}</div>
+        <div class="interp">${a.climateNote}</div>
+      </div>
+
+      <div class="ys-method">
+        <div class="ys-h">通关 · Mediation method</div>
+        <div style="margin-top:2px;">Favours: ${favChip(a.tgMediator?[a.tgMediator]:null)}</div>
+        <div class="interp">${a.tgNote}</div>
+      </div>
+
+      <div class="ys-choose">
+        <div class="ys-h">Choose your 用神 / 喜用神</div>
+        <div class="interp" style="margin-top:0;">Tap 1–2 elements to treat as favourable. ${suggest.length?`Pre-selected from the methods above (<span class="cjk">${suggest.map(e=>EL_CN[e]).join('')}</span>) — adjust freely.`:'The methods were inconclusive here, so nothing is pre-selected.'}</div>
+        <div class="el-row" id="ysBtns">${elBtns(chosen||suggest)}</div>
+        <button class="btn" id="ysApply" style="margin-top:12px;">Apply to my reading</button>
+      </div>
+    </div>
+    ${personalize}`;
+}
+function favMark(el){
+  if(!chosenYongShen||!chosenYongShen.length) return '';
+  return chosenYongShen.includes(el)
+    ? '<span class="fav-yes">✓ favourable</span>'
+    : '<span class="fav-no">✕ draining</span>';
+}
+function applyYongShen(els){
+  chosenYongShen = els.slice();
+  renderNatal(); renderLuck(); renderToday(); renderDates();
+  wireYongShen();
+  // keep the natal tab visible
+}
+function wireYongShen(){
+  const row=document.getElementById('ysBtns'); if(!row) return;
+  let sel=(chosenYongShen&&chosenYongShen.length?chosenYongShen:[]).slice();
+  // re-read current on-state from DOM-less model: derive from buttons' class
+  row.querySelectorAll('.el-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const e=b.dataset.el;
+      if(b.classList.contains('on')){ b.classList.remove('on'); }
+      else {
+        // limit to 2 selections
+        const onNow=row.querySelectorAll('.el-btn.on');
+        if(onNow.length>=2){ onNow[0].classList.remove('on'); }
+        b.classList.add('on');
+      }
+    });
+  });
+  const apply=document.getElementById('ysApply');
+  if(apply) apply.addEventListener('click',()=>{
+    const picked=[...row.querySelectorAll('.el-btn.on')].map(b=>b.dataset.el);
+    if(!picked.length){ apply.textContent='Pick at least one element'; setTimeout(()=>apply.textContent='Apply to my reading',1500); return; }
+    applyYongShen(picked);
+  });
+}
+
 function renderNatal(){
   const {ec,lunar,solar,noTime,tstNote}=chart;
   const pillars=[
@@ -448,7 +640,7 @@ function renderNatal(){
   let bars=`<div class="bars">`;
   ["mu","huo","tu","jin","shui"].forEach(e=>{
     const n=tally[e], pct=total?Math.round(n/total*100):0;
-    bars+=`<div class="bar-row"><span class="lab ${elClass(e)}">${EL_NAME[e]}</span>
+    bars+=`<div class="bar-row"><span class="lab ${elClass(e)}">${EL_NAME[e]} ${favMark(e)}</span>
       <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${EL_COLOR[e]}"></span></span>
       <span class="num">${n}</span></div>`;
   });
@@ -469,6 +661,8 @@ function renderNatal(){
       being generated (得生), and allies (得助). The structural facts above are shown rather than a single
       invented "strength %"; a full verdict also weighs hidden stems and any combinations/clashes among the branches.</div>
     </div>
+
+    ${renderYongShen()}
 
     <div class="block">
       <h3><span class="cjk">五行</span>Five Elements — primary tally</h3>
@@ -531,6 +725,7 @@ function renderLuck(){
     html+=`<div class="luck ${isNow?'now':''}">
       <div class="gz cjk ${elClass(ge)}">${gz}</div>
       <div class="ssh">${STEM_EN[g]||''} · ${(BRANCH_EN[zhiChar(gz)]||'').split(' · ')[0]}</div>
+      ${favMark(ge)?`<div class="ssh">${favMark(ge)}</div>`:''}
       <div class="meta">${d.getStartYear()}–${d.getEndYear()}</div>
       <div class="ssh">age ${d.getStartAge()}+</div>
       ${isNow?'<div class="now-pill">NOW</div>':''}
@@ -586,6 +781,7 @@ function renderToday(){
       </div>
       <div class="en-cap" style="padding-left:0;margin:-2px 0 6px;">${STEM_EN[g]||''} · ${BRANCH_EN[z]||''}</div>
       <div class="kv"><span class="k">Today vs your Day Master <span class="cjk">${dmg}</span> <span class="en-inline">${STEM_EN[dmg]||''}</span></span><span class="v"><span class="cjk">${tg||'—'}</span> <span class="en-inline">${tg?(SHISHEN_SHORT[tg]||''):''}</span></span></div>
+      ${chosenYongShen&&chosenYongShen.length?`<div class="kv"><span class="k">Today's element for you</span><span class="v">${favMark(GAN_EL[g])} <span class="en-inline">(day stem ${EL_CN[GAN_EL[g]]})</span></span></div>`:''}
       ${tg&&SHISHEN[tg]?`<div class="interp" style="margin-top:6px;">${SHISHEN[tg]}</div>`:''}
       <div style="margin-top:10px;">${tags.join('')||'<span class="empty">Today\u2019s branch neither clashes nor combines your Day branch.</span>'}</div>
     </div>
@@ -656,7 +852,7 @@ function renderDates(){
   if(yearEvents.length){
     yearEvents.forEach(e=>{
       html+=`<div class="event"><div class="when">${e.y}<small class="cjk">${e.gz}年</small></div>
-        <div class="what">${e.hits.join('<br>')}</div></div>`;
+        <div class="what">${e.hits.join('<br>')}${chosenYongShen&&chosenYongShen.length?`<br><span class="en-inline">Year stem ${EL_CN[GAN_EL[e.gz[0]]]} — ${favMark(GAN_EL[e.gz[0]])||'neutral'}</span>`:''}</div></div>`;
     });
   } else html+=`<div class="empty">No major clash / combination between the coming years and your Year or Day branch.</div>`;
   html+=`<div class="src">A "clash with 太歲 (the year)" is the classical marker of an eventful year — change, not doom.
@@ -695,7 +891,9 @@ document.getElementById('go').addEventListener('click',async()=>{
     await window.__lunarReady;
     if(typeof window.Solar==='undefined') throw new Error("Calculation engine failed to load. Check your connection, or place lunar.js beside this file.");
     chart=buildChart();
+    chosenYongShen=null;
     renderNatal(); renderLuck(); renderToday(); renderDates();
+    wireYongShen();
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(e){
