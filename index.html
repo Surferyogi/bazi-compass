@@ -260,7 +260,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-06:30";
+const VERSION = "v2026:06:14-07:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -581,7 +581,9 @@ function applyYongShen(els){
   chosenYongShen = els.slice();
   renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
   wireYongShen();
-  // keep the natal tab visible
+  // surface the now-personalised Summary so the choice is immediately visible
+  const sb=document.querySelector('.tab[data-v="summary"]'); if(sb) sb.click();
+  const res=document.getElementById('results'); if(res) res.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function wireYongShen(){
   const row=document.getElementById('ysBtns'); if(!row) return;
