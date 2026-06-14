@@ -258,7 +258,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-04:30";
+const VERSION = "v2026:06:14-05:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -281,6 +281,18 @@ const POWER_OF   ={mu:"jin",huo:"shui",tu:"mu",jin:"huo",shui:"tu"};  // 官殺 
 const DIR_OF_EL  ={mu:"East",huo:"South",tu:"Centre",jin:"West",shui:"North"};
 const COLOR_OF_EL={mu:"greens / teal",huo:"reds / purple / orange",tu:"yellows / earth-brown",jin:"white / metallic / pale gold",shui:"black / deep blue"};
 const SEASON_OF_EL={mu:"spring",huo:"summer",tu:"late-season / transitions",jin:"autumn",shui:"winter"};
+const CAREER_OF_EL={
+  mu:"education, publishing, design, healthcare & herbal, textiles/paper, sustainability, growth- or start-up work",
+  huo:"media & marketing, performance & arts, food & hospitality, energy & lighting, beauty, electronics, public-facing roles",
+  tu:"real estate & construction, agriculture, insurance, consulting, HR & mediation, property, ceramics",
+  jin:"finance & banking, engineering, law, IT hardware, machinery & automotive, jewellery, precision work",
+  shui:"trade & logistics, communication & PR, travel & tourism, shipping, sales, beverages, anything mobile or flowing"};
+const BOOST_OF_EL={
+  mu:"plants and wood furniture, green spaces, books and learning, gardening",
+  huo:"bright light and sunshine, social warmth, cardio and movement, red-orange accents",
+  tu:"ceramics and stone, steady routines, grounded central spaces, earthy yellow-brown tones",
+  jin:"metal objects and white/grey tones, decluttering and good systems, music, precise hobbies",
+  shui:"a water feature or aquarium, blue-black tones, travel, swimming, quiet reflection"};
 // 六合 pairs / 三合 groups / 六害 pairs
 const LIU_HE = {"子":"丑","丑":"子","寅":"亥","亥":"寅","卯":"戌","戌":"卯","辰":"酉","酉":"辰","巳":"申","申":"巳","午":"未","未":"午"};
 const SAN_HE = [["申","子","辰"],["亥","卯","未"],["寅","午","戌"],["巳","酉","丑"]];
@@ -882,6 +894,35 @@ const EL_TRAIT={
   jin:"structure, discipline and principle — the organiser and reformer with a sense of justice and standards",
   shui:"intelligence, adaptability and depth — the thinker and communicator who flows around obstacles"
 };
+function doDontBlock(){
+  if(!chart) return '';
+  if(!chosenYongShen || !chosenYongShen.length){
+    return `<div class="block" style="border-color:rgba(205,191,142,.35);">
+      <h3>Your Do's &amp; Don'ts</h3>
+      <div class="interp" style="margin-top:0;">This list becomes <em>yours</em> the moment you choose a favourable element.
+        Open the <em>Natal</em> tab, read the three methods under 用神, and tap <em>Apply</em> — then return here.</div></div>`;
+  }
+  const fav=chosenYongShen, avoid=['mu','huo','tu','jin','shui'].filter(e=>!fav.includes(e));
+  const list=arr=>arr.join('; ');
+  return `<div class="block" style="border-color:rgba(95,156,111,.4);">
+      <h3><span class="cjk">宜</span>DO — put the wind at your back</h3>
+      <div class="interp" style="margin-top:0;margin-bottom:10px;">Everything here strengthens your favourable element
+        (<em>${fav.map(e=>EL_NAME[e]).join(' &amp; ')}</em>) — the energy that balances your chart.</div>
+      <div class="kv"><span class="k">Where</span><span class="v" style="text-align:left;max-width:66%"><em>${fav.map(e=>DIR_OF_EL[e]).join(' · ')}</em>. Favour these directions for where you spend time and which way you face when it matters — your desk, your front door, a home's main aspect. <span class="en-inline">(why: these sectors carry your element)</span></span></div>
+      <div class="kv"><span class="k">Wear &amp; surround</span><span class="v" style="text-align:left;max-width:66%">${list(fav.map(e=>COLOR_OF_EL[e]))} — in clothing and in your space.</span></div>
+      <div class="kv"><span class="k">Bring in</span><span class="v" style="text-align:left;max-width:66%">${list(fav.map(e=>BOOST_OF_EL[e]))}.</span></div>
+      <div class="kv"><span class="k">Work that fits</span><span class="v" style="text-align:left;max-width:66%">${list(fav.map(e=>CAREER_OF_EL[e]))}. <span class="en-inline">(traditionally-associated fields, not a rule)</span></span></div>
+      <div class="kv"><span class="k">When</span><span class="v" style="text-align:left;max-width:66%">Years, months and days that carry your element are tailwinds — the timing tabs mark them <span style="color:#9fcba9">✓</span>. Lean into launches, signings and big moves then; favourable season: <em>${fav.map(e=>SEASON_OF_EL[e]).join(' / ')}</em>.</span></div>
+    </div>
+
+    <div class="block" style="border-color:rgba(178,58,46,.4);">
+      <h3><span class="cjk">忌</span>DON'T — headwinds to manage</h3>
+      <div class="kv"><span class="k">Ease off</span><span class="v" style="text-align:left;max-width:66%">Don't lean on <em>${avoid.map(e=>DIR_OF_EL[e]).join(' · ')}</em> for your most important activities, or overload your space with ${list(avoid.map(e=>COLOR_OF_EL[e].split(' ')[0]))} tones if you're trying to rebalance. These feed the energies that already drain you. <span class="en-inline">(de-emphasise, not forbidden)</span></span></div>
+      <div class="kv"><span class="k">On clash days/years</span><span class="v" style="text-align:left;max-width:66%">When the app flags a clash (<span class="cjk">沖</span>, marked <span style="color:#e7a59c">✕</span>), avoid big <em>irreversible</em> moves — signing, moving, launching. Time them just before or after the jolt, not on it. <span class="en-inline">(why: clashes bring instability)</span></span></div>
+      <div class="kv"><span class="k">Don't catastrophise</span><span class="v" style="text-align:left;max-width:66%">An "unfavourable" stretch isn't doom — it's a season for consolidation, caution and learning. Effort still pays; it just meets more friction.</span></div>
+    </div>`;
+}
+
 function renderGuide(){
   const cast = !!chart;
   let dmLine='', dmEl='', yongLine='';
@@ -907,6 +948,19 @@ function renderGuide(){
         and a calendar for <em>when</em> to push and when to wait. It is <em>not</em> a validated science and predicts no
         fixed future. Everything below is "what the tradition reads into each part", not a forecast of your life.</div>
     </div>
+
+    <div class="block">
+      <h3>The 30-second version</h3>
+      <div class="interp" style="margin-top:0;">
+        • Your chart has <em>four pillars</em> — Year, Month, Day, Hour — each covering a part of life (roots, career, self &amp; spouse, children &amp; late life).<br>
+        • One character <em>is you</em>: the <em>Day Master</em>. Its element is your core nature.<br>
+        • The single most useful thing to know is your <em>favourable element</em> — the energy that balances you. It tells you helpful directions, colours, work and timing.<br>
+        • Your chart is fixed, but life moves through <em>10-year luck cycles</em> and yearly/daily energies that either help or stretch you.<br>
+        • <em>Clashes</em> = change &amp; disruption; <em>combinations</em> = bonding &amp; consolidation.<br>
+        • Bottom line: it's a <em>mirror and a calendar</em>, not a script. The choices stay yours.</div>
+    </div>
+
+    ${doDontBlock()}
 
     <div class="block">
       <h3>The four pillars — the four arenas of your life</h3>
