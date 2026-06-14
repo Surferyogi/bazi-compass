@@ -226,14 +226,16 @@
   <!-- RESULTS -->
   <div id="results" class="hidden">
     <div class="tabs">
-      <button class="tab active" data-v="natal"><span class="cjk">命盤</span>Natal chart</button>
+      <button class="tab active" data-v="summary"><span class="cjk">概要</span>Summary</button>
+      <button class="tab" data-v="natal"><span class="cjk">命盤</span>Natal chart</button>
       <button class="tab" data-v="luck"><span class="cjk">大運</span>Luck cycles</button>
       <button class="tab" data-v="today"><span class="cjk">今日</span>Today</button>
       <button class="tab" data-v="dates"><span class="cjk">流年</span>Key dates</button>
       <button class="tab" data-v="guide"><span class="cjk">指南</span>What it means</button>
     </div>
 
-    <section class="view active" id="v-natal"></section>
+    <section class="view active" id="v-summary"></section>
+    <section class="view" id="v-natal"></section>
     <section class="view" id="v-luck"></section>
     <section class="view" id="v-today"></section>
     <section class="view" id="v-dates"></section>
@@ -258,7 +260,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-05:30";
+const VERSION = "v2026:06:14-06:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -577,7 +579,7 @@ function favMark(el){
 }
 function applyYongShen(els){
   chosenYongShen = els.slice();
-  renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
+  renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
   wireYongShen();
   // keep the natal tab visible
 }
@@ -887,6 +889,109 @@ function renderDates(){
 }
 
 /* ---------- RENDER: plain-English guide ---------- */
+const TEN_GOD_CAT={"比肩":"self","劫财":"self","食神":"output","伤官":"output","正财":"wealth","偏财":"wealth","正官":"authority","七杀":"authority","正印":"resource","偏印":"resource"};
+const CAT_NAME={self:"Self & peers 比劫",output:"Expression & talent 食傷",wealth:"Wealth & control 財",authority:"Career & authority 官殺",resource:"Learning & support 印"};
+const CAT_MEAN={self:"independence, peers and competition are emphasised",output:"talent, expression and creativity are emphasised",wealth:"money, resources and control are emphasised",authority:"career, status and discipline are emphasised",resource:"learning, support and reputation are emphasised"};
+function tenGodCounts(){
+  const {ec,noTime}=chart; const c={};
+  const add=s=>{ if(s&&TEN_GOD_CAT[s]) c[s]=(c[s]||0)+1; };
+  [ec.getYearShiShenGan(),ec.getMonthShiShenGan(),...(noTime?[]:[ec.getTimeShiShenGan()])].forEach(add);
+  [ec.getYearShiShenZhi(),ec.getMonthShiShenZhi(),ec.getDayShiShenZhi(),...(noTime?[]:[ec.getTimeShiShenZhi()])].forEach(a=>(a||[]).forEach(add));
+  return c;
+}
+function renderSummary(){
+  if(!chart){ document.getElementById('v-summary').innerHTML=''; return; }
+  const {ec,noTime}=chart;
+  const dmg=ec.getDayGan(), dmEl=GAN_EL[dmg];
+  const a=analyzeYongShen();
+
+  // dominant life theme (ten-god category)
+  const tgC=tenGodCounts(); const catCount={};
+  Object.keys(tgC).forEach(s=>{ const cat=TEN_GOD_CAT[s]; catCount[cat]=(catCount[cat]||0)+tgC[s]; });
+  let domCat=null,domN=-1; Object.keys(catCount).forEach(c=>{ if(catCount[c]>domN){domN=catCount[c];domCat=c;} });
+
+  // element balance
+  const tally=elementTally8(ec,noTime);
+  let domEl=null,dn=-1; ['mu','huo','tu','jin','shui'].forEach(e=>{ if(tally[e]>dn){dn=tally[e];domEl=e;} });
+  const missing=['mu','huo','tu','jin','shui'].filter(e=>tally[e]===0);
+
+  // current luck pillar
+  const list=chart.yun.getDaYun(9); const nowY=new Date().getFullYear();
+  const cur=list.find(d=>d.getGanZhi()&&nowY>=d.getStartYear()&&nowY<=d.getEndYear());
+  let luckLine='—';
+  if(cur){ const lg=ganChar(cur.getGanZhi()), le=GAN_EL[lg];
+    luckLine=`<span class="cjk ${elClass(le)}">${cur.getGanZhi()}</span> ${ganzhiEN(cur.getGanZhi())} · ${cur.getStartYear()}–${cur.getEndYear()} ${favMark(le)}`; }
+
+  // today
+  const Solar=window.Solar, now=new Date();
+  const lToday=Solar.fromYmdHms(now.getFullYear(),now.getMonth()+1,now.getDate(),12,0,0).getLunar();
+  const tdGz=lToday.getDayInGanZhi(), tdEl=GAN_EL[ganChar(tdGz)];
+  const tdTg=tenGodOf(dmg,ganChar(tdGz));
+  const tdClash = clashOf(zhiChar(ec.getDay()))===zhiChar(tdGz);
+
+  // next key year
+  const natalYearZhi=zhiChar(ec.getYear()), natalDayZhi=zhiChar(ec.getDay());
+  let nextYear=null;
+  for(let y=nowY;y<=nowY+12 && !nextYear;y++){
+    const yz=zhiChar(Solar.fromYmd(y,3,1).getLunar().getYearInGanZhi());
+    let tag=null;
+    if(yz===natalYearZhi) tag='your zodiac year (值太歲) — prudence & renewal';
+    else if(clashOf(natalYearZhi)===yz) tag='沖太歲 — a watched year of change';
+    else if(clashOf(natalDayZhi)===yz) tag='clashes your Day branch — self / partnership';
+    else if(LIU_HE[natalYearZhi]===yz||sanHeOf(natalYearZhi).includes(yz)) tag='combines your Year branch — consolidation';
+    if(tag) nextYear={y,tag,gz:Solar.fromYmd(y,3,1).getLunar().getYearInGanZhi()};
+  }
+  // next key day (clash to day branch)
+  let nextDay=null;
+  for(let i=0;i<60 && !nextDay;i++){
+    const dt=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i);
+    const z=zhiChar(Solar.fromYmd(dt.getFullYear(),dt.getMonth()+1,dt.getDate()).getLunar().getDayInGanZhi());
+    if(clashOf(natalDayZhi)===z) nextDay={dt};
+  }
+  const fmtDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  // favourable element line
+  let favLine, favMeaning;
+  if(chosenYongShen&&chosenYongShen.length){
+    favLine=`${chosenYongShen.map(e=>`<span class="cjk ${elClass(e)}">${EL_CN[e]}</span> ${EL_NAME[e].split(' ')[0]}`).join(' · ')}`;
+    favMeaning=`Favour <em>${chosenYongShen.map(e=>DIR_OF_EL[e]).join(' / ')}</em> · ${chosenYongShen.map(e=>COLOR_OF_EL[e].split(' ')[0]).join(', ')} tones. The timing tabs mark these ✓.`;
+  } else {
+    const sug=a.fuyiFavour||a.climateFavour;
+    favLine=sug?`Suggested: ${sug.map(e=>EL_CN[e]).join('、')} <span class="en-inline">(not yet confirmed)</span>`:'Inconclusive — choose on the Natal tab';
+    favMeaning=`Open <em>Natal → 用神</em> and tap Apply to lock this in and personalise the whole app.`;
+  }
+
+  const dmTraitShort = EL_TRAIT[dmEl].split(' — ')[0];
+  const leanWord = a.leaning==='borderline'?'borderline / ambiguous':a.leaning+'-leaning';
+  const leanMean = a.leaning==='strong'?'plenty of self-energy — independent and resilient, needs healthy outlets'
+    : a.leaning==='weak'?'benefits from support, allies and learning; sensitive to environment'
+    : 'genuinely balanced/ambiguous — the methods may disagree';
+
+  document.getElementById('v-summary').innerHTML = `
+    <div class="block">
+      <h3><span class="cjk">概要</span>Your headlines</h3>
+      <div class="interp" style="margin-top:0;margin-bottom:6px;">The whole assessment, distilled. Tap any tab for the detail behind each line.</div>
+      <div class="kv"><span class="k">Who you are</span><span class="v" style="text-align:left;max-width:64%"><span class="cjk ${elClass(dmEl)}">${dmg}</span> ${STEM_EN[dmg]} — ${dmTraitShort}</span></div>
+      <div class="kv"><span class="k">Your energy</span><span class="v" style="text-align:left;max-width:64%"><em>${leanWord}</em> — ${leanMean}</span></div>
+      <div class="kv"><span class="k">Favourable element</span><span class="v" style="text-align:left;max-width:64%">${favLine}<br><span class="en-inline">${favMeaning}</span></span></div>
+      <div class="kv"><span class="k">Strongest theme</span><span class="v" style="text-align:left;max-width:64%">${domCat?`${CAT_NAME[domCat]} — ${CAT_MEAN[domCat]}`:'—'}</span></div>
+      <div class="kv"><span class="k">Element balance</span><span class="v" style="text-align:left;max-width:64%">Most: <span class="${elClass(domEl)}">${EL_NAME[domEl]}</span>${missing.length?` · Missing: ${missing.map(e=>`<span class="${elClass(e)}">${EL_CN[e]}</span>`).join('、')} (an area to cultivate)`:' · all five present'}</span></div>
+      <div class="kv"><span class="k">Current 10-yr luck</span><span class="v" style="text-align:left;max-width:64%">${luckLine}</span></div>
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">時運</span>Right now &amp; what's ahead</h3>
+      <div class="kv"><span class="k">Today</span><span class="v" style="text-align:left;max-width:64%"><span class="cjk ${elClass(tdEl)}">${tdGz}</span> · ${tdTg?(SHISHEN_SHORT[tdTg]+' day'):'—'} ${chosenYongShen&&chosenYongShen.length?favMark(tdEl):''} ${tdClash?'· <span style="color:#e7a59c">clashes your Day branch</span>':''}</span></div>
+      <div class="kv"><span class="k">Next key year</span><span class="v" style="text-align:left;max-width:64%">${nextYear?`<em>${nextYear.y}</em> <span class="cjk">${nextYear.gz}</span> — ${nextYear.tag}`:'<span class="empty">none flagged in the next 12 years</span>'}</span></div>
+      <div class="kv"><span class="k">Next key day</span><span class="v" style="text-align:left;max-width:64%">${nextDay?`<em>${fmtDate(nextDay.dt)}</em> — clash to your Day branch; avoid big irreversible moves`:'<span class="empty">none in the next 60 days</span>'}</span></div>
+      <div class="src">Years/days are flagged by deterministic clash/combination rules against your chart — a map of notable interactions, not a forecast of events. "Favourable/draining" reflects the element you chose.</div>
+    </div>
+
+    <div class="block" style="border-color:rgba(178,58,46,.3);">
+      <div class="interp" style="margin:0;">Read these as a <em>mirror and a calendar</em>, not a verdict. Every line is a computed fact plus its traditional meaning — the choices, and the life, stay yours.</div>
+    </div>`;
+}
+
 const EL_TRAIT={
   mu:"growth, vision and benevolence — the planner and pioneer who likes to expand and improve things",
   huo:"passion, warmth and expression — the performer and connector who lights up a room and wants to be seen",
@@ -1088,7 +1193,7 @@ document.getElementById('go').addEventListener('click',async()=>{
     if(typeof window.Solar==='undefined') throw new Error("Calculation engine failed to load. Check your connection, or place lunar.js beside this file.");
     chart=buildChart();
     chosenYongShen=null;
-    renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
+    renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
     wireYongShen();
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
