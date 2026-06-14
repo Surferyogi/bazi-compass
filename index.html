@@ -260,7 +260,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-07:30";
+const VERSION = "v2026:06:14-08:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -901,6 +901,52 @@ function tenGodCounts(){
   [ec.getYearShiShenZhi(),ec.getMonthShiShenZhi(),ec.getDayShiShenZhi(),...(noTime?[]:[ec.getTimeShiShenZhi()])].forEach(a=>(a||[]).forEach(add));
   return c;
 }
+/* ---------- best / worst days (transparent factor-based ranking) ----------
+   Each day's score is the sum of NAMED, deterministic factors: your chart
+   interactions (六合/三合 vs 沖/害 with your Day branch + 沖 with 太歲), your chosen
+   favourable element, and the day's traditional 黄道/黑道 almanac quality + 吉神/凶煞
+   balance. Reasons are shown; the number is only used to rank. */
+function scoreDay(lunar, DB, YB, fav){
+  const gz=lunar.getDayInGanZhi(), g=gz[0], z=gz[1], se=GAN_EL[g], be=ZHI_EL[z];
+  let s=0; const pos=new Set(), neg=new Set();
+  if(clashOf(DB)===z){ neg.add('<span class="cjk">沖</span> your Day branch'); s-=3; }
+  if(clashOf(YB)===z){ neg.add('<span class="cjk">沖</span> 太歲 (year)'); s-=2; }
+  if(LIU_HE[DB]===z){ pos.add('<span class="cjk">六合</span> Day branch'); s+=2; }
+  if(sanHeOf(DB).includes(z)){ pos.add('<span class="cjk">三合</span> Day branch'); s+=2; }
+  if(LIU_HAI[DB]===z){ neg.add('<span class="cjk">害</span> Day branch'); s-=1; }
+  if(fav && fav.length){
+    const drain=['mu','huo','tu','jin','shui'].filter(e=>!fav.includes(e));
+    if(fav.includes(se)||fav.includes(be)){ pos.add('favourable element'); s+=(fav.includes(se)?1.5:0)+(fav.includes(be)?1.5:0); }
+    if(drain.includes(se)||drain.includes(be)){ neg.add('draining element'); s-=(drain.includes(se)?1.5:0)+(drain.includes(be)?1.5:0); }
+  }
+  const t=lunar.getDayTianShenType?lunar.getDayTianShenType():null;
+  if(t==='黄道'){ pos.add('<span class="cjk">黄道</span> auspicious'); s+=1; }
+  else if(t==='黑道'){ neg.add('<span class="cjk">黑道</span> inauspicious'); s-=1; }
+  const ji=(lunar.getDayJiShen&&lunar.getDayJiShen()||[]).length;
+  const xs=(lunar.getDayXiongSha&&lunar.getDayXiongSha()||[]).length;
+  s += (ji-xs)*0.25;
+  return {gz, s, pos:[...pos], neg:[...neg]};
+}
+function bestWorstDays(){
+  const {ec}=chart, Solar=window.Solar;
+  const DB=zhiChar(ec.getDay()), YB=zhiChar(ec.getYear()), fav=chosenYongShen||[];
+  const now=new Date(), arr=[];
+  for(let i=0;i<365;i++){
+    const dt=new Date(now.getFullYear(),now.getMonth(),now.getDate()+i);
+    const lunar=Solar.fromYmd(dt.getFullYear(),dt.getMonth()+1,dt.getDate()).getLunar();
+    arr.push(Object.assign({dt},scoreDay(lunar,DB,YB,fav)));
+  }
+  const best=[...arr].sort((a,b)=>b.s-a.s).slice(0,5);
+  const worst=[...arr].sort((a,b)=>a.s-b.s).slice(0,5);
+  return {best,worst};
+}
+function dayRow(d,kind){
+  const f=`${d.dt.getFullYear()}-${String(d.dt.getMonth()+1).padStart(2,'0')}-${String(d.dt.getDate()).padStart(2,'0')}`;
+  const tags=(kind==='best'?d.pos.map(t=>`<span class="tag he">${t}</span>`).concat(d.neg.map(t=>`<span class="tag clash">${t}</span>`))
+                          :d.neg.map(t=>`<span class="tag clash">${t}</span>`).concat(d.pos.map(t=>`<span class="tag he">${t}</span>`))).join('');
+  return `<div class="event"><div class="when">${f}<small class="cjk">${d.gz}日</small></div><div class="what">${tags||'<span class="empty">neutral</span>'}</div></div>`;
+}
+
 function renderSummary(){
   if(!chart){ document.getElementById('v-summary').innerHTML=''; return; }
   const {ec,noTime}=chart;
@@ -987,6 +1033,19 @@ function renderSummary(){
       <div class="kv"><span class="k">Next key year</span><span class="v" style="text-align:left;max-width:64%">${nextYear?`<em>${nextYear.y}</em> <span class="cjk">${nextYear.gz}</span> — ${nextYear.tag}`:'<span class="empty">none flagged in the next 12 years</span>'}</span></div>
       <div class="kv"><span class="k">Next key day</span><span class="v" style="text-align:left;max-width:64%">${nextDay?`<em>${fmtDate(nextDay.dt)}</em> — clash to your Day branch; avoid big irreversible moves`:'<span class="empty">none in the next 60 days</span>'}</span></div>
       <div class="src">Years/days are flagged by deterministic clash/combination rules against your chart — a map of notable interactions, not a forecast of events. "Favourable/draining" reflects the element you chose.</div>
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">擇日</span>Best &amp; worst days — the year ahead</h3>
+      ${(()=>{ const {best,worst}=bestWorstDays(); return `
+        <div class="seg-title" style="color:#9fcba9">Most favourable</div>
+        ${best.map(d=>dayRow(d,'best')).join('')}
+        <div class="seg-title" style="color:#e7a59c;margin-top:14px;">Most challenging</div>
+        ${worst.map(d=>dayRow(d,'worst')).join('')}`; })()}
+      <div class="src">Ranked across the next 12 months by net favourable vs unfavourable <em>traditional factors</em>:
+        your chart interactions (六合/三合 help; a 沖 to your Day branch is a strong negative), your favourable element,
+        and the day's 黄道/黑道 almanac quality with its 吉神/凶煞 balance. Reasons are shown for each day. Similar days
+        recur through the year — this is a <em>timing map, not a forecast of events</em>.${(!chosenYongShen||!chosenYongShen.length)?' Choose your favourable element on the Natal tab to add the personal layer.':''}</div>
     </div>
 
     <div class="block" style="border-color:rgba(178,58,46,.3);">
