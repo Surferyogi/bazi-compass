@@ -230,12 +230,14 @@
       <button class="tab" data-v="luck"><span class="cjk">大運</span>Luck cycles</button>
       <button class="tab" data-v="today"><span class="cjk">今日</span>Today</button>
       <button class="tab" data-v="dates"><span class="cjk">流年</span>Key dates</button>
+      <button class="tab" data-v="guide"><span class="cjk">指南</span>What it means</button>
     </div>
 
     <section class="view active" id="v-natal"></section>
     <section class="view" id="v-luck"></section>
     <section class="view" id="v-today"></section>
     <section class="view" id="v-dates"></section>
+    <section class="view" id="v-guide"></section>
   </div>
 
   <footer>
@@ -256,7 +258,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-03:30";
+const VERSION = "v2026:06:14-04:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -563,7 +565,7 @@ function favMark(el){
 }
 function applyYongShen(els){
   chosenYongShen = els.slice();
-  renderNatal(); renderLuck(); renderToday(); renderDates();
+  renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
   wireYongShen();
   // keep the natal tab visible
 }
@@ -872,6 +874,146 @@ function renderDates(){
   document.getElementById('v-dates').innerHTML=html;
 }
 
+/* ---------- RENDER: plain-English guide ---------- */
+const EL_TRAIT={
+  mu:"growth, vision and benevolence — the planner and pioneer who likes to expand and improve things",
+  huo:"passion, warmth and expression — the performer and connector who lights up a room and wants to be seen",
+  tu:"stability, loyalty and nurture — the dependable anchor who builds trust and holds things together",
+  jin:"structure, discipline and principle — the organiser and reformer with a sense of justice and standards",
+  shui:"intelligence, adaptability and depth — the thinker and communicator who flows around obstacles"
+};
+function renderGuide(){
+  const cast = !!chart;
+  let dmLine='', dmEl='', yongLine='';
+  if(cast){
+    const ec=chart.ec; dmEl=GAN_EL[ec.getDayGan()];
+    dmLine=`In your chart, the Day Master is <span class="cjk ${elClass(dmEl)}">${ec.getDayGan()}</span> — <em>${EL_NAME[dmEl]}</em>. So when this guide says "you", in the symbolism it means ${EL_NAME[dmEl].split(' ')[0]}: ${EL_TRAIT[dmEl]}.`;
+  }
+  if(cast && chosenYongShen && chosenYongShen.length){
+    yongLine=`You've set your favourable element(s) to <em>${chosenYongShen.map(e=>EL_NAME[e]).join(' & ')}</em>. Throughout the other tabs, anything carrying that element is marked <span style="color:#9fcba9">favourable ✓</span>; the rest, <span style="color:#e7a59c">draining ✕</span>. Favourable directions for you: <em>${chosenYongShen.map(e=>DIR_OF_EL[e]).join(' · ')}</em>.`;
+  } else if(cast){
+    yongLine=`You haven't chosen a favourable element yet — open the Natal tab, review the three methods under 用神, and tap <em>Apply</em>. That single choice is what turns the timing tabs from generic into personal.`;
+  }
+
+  document.getElementById('v-guide').innerHTML = `
+    <div class="block">
+      <h3><span class="cjk">指南</span>What all of this means — in plain English</h3>
+      <div class="interp" style="margin-top:0;">
+        ${cast?dmLine:'Cast a chart first, then come back here — this guide will anchor itself to your own Day Master.'}
+      </div>
+      <div class="interp">BaZi (八字, "eight characters") is a 1,000-year-old Chinese system that takes the exact moment you
+        were born and turns it into a symbolic map of four "pillars". It was never a measurement of you — think of it as a
+        <em>language for talking about character, timing and tendencies</em>. Used well, it's a mirror for self-understanding
+        and a calendar for <em>when</em> to push and when to wait. It is <em>not</em> a validated science and predicts no
+        fixed future. Everything below is "what the tradition reads into each part", not a forecast of your life.</div>
+    </div>
+
+    <div class="block">
+      <h3>The four pillars — the four arenas of your life</h3>
+      <div class="interp">Each pillar is a stem (the visible, outer layer) sitting on a branch (the hidden, inner
+        foundation). Read left to right, they also map roughly onto the seasons of your life:</div>
+      <div class="kv"><span class="k cjk">年柱 Year</span><span class="v" style="text-align:left;max-width:62%">Ancestry, family roots, your early years and the wider world you were born into.</span></div>
+      <div class="kv"><span class="k cjk">月柱 Month</span><span class="v" style="text-align:left;max-width:62%">Career, parents, your formative environment and working life. The most important pillar for judging your "strength".</span></div>
+      <div class="kv"><span class="k cjk">日柱 Day</span><span class="v" style="text-align:left;max-width:62%">The day <em>stem</em> is <em>you</em>. The day <em>branch</em> is your spouse / marriage and your inner self. Mid-life.</span></div>
+      <div class="kv"><span class="k cjk">時柱 Hour</span><span class="v" style="text-align:left;max-width:62%">Children, what you create, your later years and your legacy.</span></div>
+      <div class="interp">So when a clash or a lucky period lands on a particular pillar, it's pointing at <em>that</em> arena —
+        e.g. something stirring in the Day pillar speaks to self and partnership; the Hour pillar, to children or late life.</div>
+    </div>
+
+    <div class="block">
+      <h3>You, at the centre: the Day Master</h3>
+      <div class="interp">Of all eight characters, one <em>is you</em>: the Day Master. Its element is your core nature
+        ${cast?`(<span class="${elClass(dmEl)}">${EL_NAME[dmEl]}</span> for you)`:''}. The five natures, as the tradition paints them:
+        <br>• <span class="e-mu">Wood</span> — ${EL_TRAIT.mu}.
+        <br>• <span class="e-huo">Fire</span> — ${EL_TRAIT.huo}.
+        <br>• <span class="e-tu">Earth</span> — ${EL_TRAIT.tu}.
+        <br>• <span class="e-jin">Metal</span> — ${EL_TRAIT.jin}.
+        <br>• <span class="e-shui">Water</span> — ${EL_TRAIT.shui}.
+        <br>Everything else in the chart is read in relation to this one character.</div>
+    </div>
+
+    <div class="block">
+      <h3>Strong or weak — and why it isn't "good or bad"</h3>
+      <div class="interp">"Strength" measures how much self-energy your Day Master has (is it in season? rooted? surrounded by
+        allies and resources?). A <em>strong</em> self is independent and resilient but needs healthy outlets to spend that
+        energy; a <em>weak</em> self is sensitive to its environment and flourishes with support, allies and learning.
+        Neither is better — they simply need <em>different</em> elements to thrive. That conclusion is the whole point of the
+        next idea.</div>
+    </div>
+
+    <div class="block">
+      <h3>The keystone: your favourable element (用神)</h3>
+      <div class="interp">Once strength is judged, one or two elements emerge as the ones that <em>balance</em> you — your
+        favourable element(s). This is the single most useful output, because it tells you which energies are "wind at your
+        back": favourable directions to live and work, supportive colours, and how to tell whether a given year, month or day
+        is working <em>for</em> you or against you. Because schools genuinely disagree on how to judge it, the app shows three
+        classical methods and lets <em>you</em> choose rather than pretending there's one right answer.
+        <br><br>${yongLine||'Cast a chart and choose your element on the Natal tab to activate the personalised markings across the app.'}</div>
+    </div>
+
+    <div class="block">
+      <h3>The Ten Gods (十神) — the cast of characters in your life</h3>
+      <div class="interp">Every other character relates to your Day Master in one of five ways. These "Ten Gods" are the
+        richest part of the reading — whichever ones dominate your chart show which life themes run strongest:</div>
+      <div class="kv"><span class="k cjk">比劫 Companion / Rival</span><span class="v" style="text-align:left;max-width:60%">Self, peers, siblings, friends and competitors. Independence and drive — but also rivalry over money.</span></div>
+      <div class="kv"><span class="k cjk">食傷 Output</span><span class="v" style="text-align:left;max-width:60%">Talent, creativity, performance, how you express yourself. Gentle (食神) = easygoing craft; sharp (傷官) = brilliant, restless, rule-bending. Linked to children, especially for women.</span></div>
+      <div class="kv"><span class="k cjk">財 Wealth</span><span class="v" style="text-align:left;max-width:60%">Money, assets, lifestyle, the things you control and desire. For men, also wife and romance; and the father.</span></div>
+      <div class="kv"><span class="k cjk">官殺 Authority / Power</span><span class="v" style="text-align:left;max-width:60%">Career, status, discipline, pressure and rules. Proper (正官) = legitimate authority; raw (七殺) = pressure and power that must be governed. For women, also the husband.</span></div>
+      <div class="kv"><span class="k cjk">印 Resource</span><span class="v" style="text-align:left;max-width:60%">Learning, support, protection, reputation — what nourishes you. Linked to the mother.</span></div>
+      <div class="interp">A chart heavy in Wealth and Authority reads as worldly and career-driven; one heavy in Output and
+        Resource, as creative and scholarly — and so on. It's a portrait of emphasis, not a verdict.</div>
+    </div>
+
+    <div class="block">
+      <h3>The smaller layers</h3>
+      <div class="interp">
+        • <em>Five-element balance</em> — the tally of all five energies. A missing element is traditionally read as a quality
+        to consciously cultivate, not a flaw.<br>
+        • <em>Hidden stems (藏干)</em> — the unseen influences buried inside each branch; resources and relationships that aren't
+        obvious on the surface.<br>
+        • <em>Na Yin (納音)</em> — a poetic second layer that gives each pillar an image (e.g. "Sword Metal", "Ocean Water"),
+        a flavour rather than a mechanism.<br>
+        • <em>12 Life Stages (十二長生)</em> — how energised your "self" is in each pillar, following a lifecycle from birth
+        through peak to rest and rebirth.<br>
+        • <em>Tai Yuan / Ming Gong / Shen Gong (胎元 / 命宮 / 身宮)</em> — the conception point, your "life palace" (a core
+        anchor of the chart) and "body palace" (the later-life self). Supporting reference points.</div>
+    </div>
+
+    <div class="block">
+      <h3>Timing: how a fixed chart meets a moving life</h3>
+      <div class="interp">Your chart never changes — but life unfolds through moving cycles that interact with it. This is how
+        BaZi talks about <em>when</em>:
+        <br>• <em>Luck Pillars (大運)</em> — ten-year "seasons", each a new stem+branch. A decade carrying your favourable
+        element is a tailwind; an unfavourable one is a stretch of headwinds and lessons. The Luck cycles tab highlights the
+        decade you're in now.<br>
+        • <em>Year / Month / Day (流年 / 流月 / 流日)</em> — the finer grain. The Today tab reads the current day against your
+        chart; Key dates scans ahead for the notable ones.<br>
+        • The daily almanac's <em>宜 (favourable)</em> and <em>忌 (avoid)</em> lists are the classic "old farmer's calendar" —
+        the same for everyone that day; the personal layer is how that day's energy meets <em>your</em> chart.</div>
+    </div>
+
+    <div class="block">
+      <h3>Clashes &amp; combinations — the verbs of the system</h3>
+      <div class="interp">When two branches meet — within your chart, or between a passing year/day and your chart — they
+        interact:
+        <br>• <span style="color:#e7a59c">Clash (沖)</span> — opposition: disruption, movement, change, a jolt. Often relocation,
+        job change, travel — eventful, not "bad".<br>
+        • <span style="color:#9fcba9">Combination (合 / 三合)</span> — bonding: things merge, consolidate, partnerships form.<br>
+        • <span style="color:#e0c98c">Harm (害)</span> — friction: small wear-and-tear, niggles, misunderstandings.<br>
+        A clash to your Day branch touches self and marriage; to your Year branch, the wider ground under your feet (the
+        classical 沖太歲, a "watched" year of change).</div>
+    </div>
+
+    <div class="block" style="border-color:rgba(178,58,46,.3);">
+      <h3>The honest bottom line</h3>
+      <div class="interp">Use this as a <em>mirror and a calendar</em>, not a script. At its best, BaZi helps you understand
+        your own grain — where you push easily and where you swim upstream — and gives a sense of timing for big moves. But the
+        chart describes tendencies, not certainties; the future isn't fixed, and the most favourable year still rewards effort
+        while the hardest still leaves room for choice. Every meaning here is the traditional reading of the symbols, offered to
+        inform your judgement — never to replace it. The decisions, and the life, remain yours.</div>
+    </div>`;
+}
+
 /* ---------- wiring ---------- */
 document.getElementById('advBtn').addEventListener('click',()=>{
   document.getElementById('adv').classList.toggle('open');
@@ -892,7 +1034,7 @@ document.getElementById('go').addEventListener('click',async()=>{
     if(typeof window.Solar==='undefined') throw new Error("Calculation engine failed to load. Check your connection, or place lunar.js beside this file.");
     chart=buildChart();
     chosenYongShen=null;
-    renderNatal(); renderLuck(); renderToday(); renderDates();
+    renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
     wireYongShen();
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
