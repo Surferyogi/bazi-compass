@@ -1,5 +1,5 @@
 /* BaZi Compass service worker — offline cache. Bump CACHE when files change. */
-const CACHE = 'bazi-compass-v2026-06-15a';
+const CACHE = 'bazi-compass-v2026-06-15b';
 const ASSETS = [
   './', './index.html', './manifest.json', './lunar.js',
   './icon-192.png', './icon-512.png'
