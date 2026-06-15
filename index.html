@@ -221,6 +221,13 @@
     </div>
     <button class="btn" id="go">Cast the chart</button>
     <div class="err hidden" id="err"></div>
+    <div class="row-inline" style="justify-content:space-between;margin-top:10px;">
+      <label style="display:flex;align-items:center;gap:7px;margin:0;text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--paper-dim);">
+        <input type="checkbox" id="remember" checked style="width:auto;"> Remember my details on this device
+      </label>
+      <button id="forget" class="adv-toggle" style="margin:0;">Forget</button>
+    </div>
+    <div class="hint" id="savedNote" style="margin-top:4px;"></div>
   </div>
 
   <!-- RESULTS -->
@@ -260,7 +267,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-08:30";
+const VERSION = "v2026:06:14-10:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -581,6 +588,7 @@ function applyYongShen(els){
   chosenYongShen = els.slice();
   renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
   wireYongShen();
+  if(typeof saveProfile==='function') saveProfile();   // persist the element choice on this device
   // surface the now-personalised Summary so the choice is immediately visible
   const sb=document.querySelector('.tab[data-v="summary"]'); if(sb) sb.click();
   const res=document.getElementById('results'); if(res) res.scrollIntoView({behavior:'smooth',block:'start'});
@@ -947,6 +955,97 @@ function dayRow(d,kind){
   return `<div class="event"><div class="when">${f}<small class="cjk">${d.gz}日</small></div><div class="what">${tags||'<span class="empty">neutral</span>'}</div></div>`;
 }
 
+function domainHighlights(a){
+  const {ec,noTime}=chart; const dmEl=GAN_EL[ec.getDayGan()];
+  const tgC=tenGodCounts(); const cat={};
+  Object.keys(tgC).forEach(s=>{const c=TEN_GOD_CAT[s];cat[c]=(cat[c]||0)+tgC[s];});
+  const tally=elementTally8(ec,noTime);
+  const fav=chosenYongShen||[];
+  const leaning=(a&&a.leaning)||analyzeYongShen().leaning;
+  const promo=n=>n>=3?'prominent':(n>=1?'present':'absent / weak');
+  const favTag=e=>fav.length?(fav.includes(e)?'<span class="fav-yes">✓ favourable for you</span>':'<span class="fav-no">✕ draining for you</span>'):'<span class="en-inline">(choose your element to personalise)</span>';
+  const carry = leaning==='strong'?'a strong Day Master can carry the risk and demands'
+    : leaning==='weak'?'a lighter Day Master means partners, systems and staged growth help you carry it (the classical 財多身弱 caution: opportunity is easier to see than to hold)'
+    : 'a balanced Day Master can manage it with discipline';
+
+  // WEALTH 財 — the element the Day Master controls
+  const wEl=CTRL[dmEl], wN=cat.wealth||0, wFav=fav.includes(wEl), wDrain=fav.length&&!fav.includes(wEl);
+  const wRead = wN===0
+    ? `No wealth stars (財) show in your eight characters — money is built through effort and the right luck decades rather than handed easily. Watch decades carrying <em>${EL_NAME[wEl]}</em>.`
+    : `Your wealth element is <em>${EL_NAME[wEl]}</em> — ${promo(wN)} in the chart. ${wFav?'It is also one of your favourable elements, so pursuing and managing money sits naturally with your chart.':wDrain?'It is a draining element for you, so wealth is reachable but chasing it spends your energy — structure, partners and patience help you hold it.':'Build it steadily and let supportive luck cycles amplify it.'}`;
+
+  // CAREER 官殺 — the element that controls the Day Master + the Month pillar (career palace)
+  const cEl=POWER_OF[dmEl], cN=cat.authority||0, oN=cat.output||0;
+  const monthTg=ec.getMonthShiShenGan();
+  const cFav=fav.includes(cEl), cDrain=fav.length&&!fav.includes(cEl);
+  let cRead=`Your career palace is the <em>Month pillar</em> (its Ten God: <span class="cjk">${monthTg}</span> ${SHISHEN_SHORT[monthTg]||''}). `;
+  cRead += cN>=3 ? `Authority stars (官殺) are prominent — you're drawn to status, responsibility and structured advancement.`
+    : cN>=1 ? `Authority stars (官殺) are present — a workable relationship with hierarchy and recognition.`
+    : (oN>=2 ? `Formal authority stars are light while expression/talent stars (食傷) are strong — a career built on talent, ideas and self-direction more than rank.`
+             : `Formal authority stars are light — career is shaped more by self-drive and circumstance than by formal hierarchy.`);
+  cRead += ` Your authority element ${EL_CN[cEl]} is ${cFav?'favourable':cDrain?'draining':'neutral'} for you.`;
+
+  // HOME / PROPERTY 田宅 — read indirectly via Resource (印) + Earth (land)
+  const rEl=RESOURCE_OF[dmEl], rN=cat.resource||0, earthN=tally.tu;
+  const hRead = `In Four Pillars, home &amp; property are read <em>indirectly</em> — chiefly through the Resource star (印, tied to deeds, documents and dwelling, ${promo(rN)} here) and the Earth element (land, ${earthN>=2?'well represented':earthN===1?'present':'light'}). ${fav.length?`Favourable directions to live and work: <em>${fav.map(e=>DIR_OF_EL[e]).join(' / ')}</em>.`:`Choose your favourable element on the Natal tab to get your favourable living directions.`} The dwelling itself is feng-shui's domain, so treat this as a tendency, not a blueprint.`;
+
+  // INVESTMENTS 偏財 — indirect / speculative wealth
+  const pianCai=tgC['偏财']||0, zhengCai=tgC['正财']||0;
+  let invRead;
+  if(pianCai===0 && zhengCai===0) invRead=`Neither speculative (偏財) nor steady (正財) wealth stars are visible — the chart isn't marked for investing as a strength; gains come indirectly, through talent or the right luck cycles, and prudence beats speculation.`;
+  else if(pianCai===0) invRead=`Your wealth is the <em>steady, earned kind</em> (正財), not the speculative (偏財). Traditionally that favours building through regular income and prudent, long-hold assets over active speculation or frequent trading.`;
+  else invRead=`偏財 (indirect / speculative wealth) is ${promo(pianCai)} — classically the marker of windfalls, multiple income streams and an appetite for opportunity. Acting on it, ${carry}.`;
+
+  // OWN BUSINESS / VENTURES — 食傷生財 (Output feeding Wealth) + Day-Master capacity
+  const output=cat.output||0, qiSha=tgC['七杀']||0;
+  let bizRead=`The classic entrepreneur's pattern is <em>食傷生財</em> — Output (食傷: your ideas, skills, what you make) feeding Wealth (財: the return). `;
+  if(output>=1 && wN>=1) bizRead+=`You carry <em>both</em> — the venture structure is present, and ${carry}.`;
+  else if(output>=1 && wN===0) bizRead+=`You have strong Output (talent / ideas) but light Wealth stars — you create and produce well; converting that into money leans on the right luck cycles or a wealth-minded partner.`;
+  else if(output===0 && wN>=1) bizRead+=`Wealth is present but Output (your self-made "product") is light — the chart favours <em>managing or holding</em> wealth (investing, employed or operator roles) over founding from your own creations.`;
+  else bizRead+=`Both Output and Wealth stars are light — the chart points more to structured / employed paths than founding a venture alone; co-founders who supply those energies help.`;
+  if(qiSha>=1) bizRead+=` 七殺 present adds drive and risk-tolerance.`;
+
+  return `<div class="block">
+      <h3><span class="cjk">論命</span>Wealth · Investments · Ventures · Career · Home</h3>
+      <div class="ys-method">
+        <div class="ys-h"><span class="cjk">財</span> Wealth</div>
+        <div class="kv"><span class="k">Wealth element</span><span class="v"><span class="cjk ${elClass(wEl)}">${EL_CN[wEl]}</span> ${EL_NAME[wEl].split(' ')[0]} · ${favTag(wEl)}</span></div>
+        <div class="kv"><span class="k">Wealth stars 正財/偏財</span><span class="v">${wN} — ${promo(wN)}</span></div>
+        <div class="interp">${wRead}</div>
+      </div>
+      <div class="ys-method">
+        <div class="ys-h"><span class="cjk">偏財</span> Investments &amp; windfall</div>
+        <div class="kv"><span class="k">Speculative wealth 偏財</span><span class="v">${pianCai} — ${promo(pianCai)}</span></div>
+        <div class="kv"><span class="k">vs steady wealth 正財</span><span class="v">${zhengCai}</span></div>
+        <div class="interp">${invRead}</div>
+        <div class="src" style="margin-top:6px;">A traditional read of disposition — <em>not financial advice or a prediction of returns</em>.</div>
+      </div>
+      <div class="ys-method">
+        <div class="ys-h"><span class="cjk">食傷生財</span> Own business &amp; ventures</div>
+        <div class="kv"><span class="k">Output stars 食傷 (your "product")</span><span class="v">${output} — ${promo(output)}</span></div>
+        <div class="kv"><span class="k">Wealth stars 財 (the return)</span><span class="v">${wN} — ${promo(wN)}</span></div>
+        <div class="kv"><span class="k">Day-Master capacity</span><span class="v">${leaning==='borderline'?'balanced':leaning+'-leaning'}</span></div>
+        <div class="interp">${bizRead}</div>
+        <div class="src" style="margin-top:6px;">A traditional read of disposition — <em>not business advice or a forecast of success</em>.</div>
+      </div>
+      <div class="ys-method">
+        <div class="ys-h"><span class="cjk">官殺</span> Career</div>
+        <div class="kv"><span class="k">Authority element</span><span class="v"><span class="cjk ${elClass(cEl)}">${EL_CN[cEl]}</span> ${EL_NAME[cEl].split(' ')[0]} · ${favTag(cEl)}</span></div>
+        <div class="kv"><span class="k">Authority stars 正官/七殺</span><span class="v">${cN} — ${promo(cN)}</span></div>
+        <div class="interp">${cRead}</div>
+      </div>
+      <div class="ys-method">
+        <div class="ys-h"><span class="cjk">田宅</span> Home &amp; property</div>
+        <div class="kv"><span class="k">Resource star 印</span><span class="v">${rN} — ${promo(rN)}</span></div>
+        <div class="kv"><span class="k">Earth (land)</span><span class="v">${earthN} in chart</span></div>
+        <div class="interp">${hRead}</div>
+      </div>
+      <div class="src">Wealth, Investments (偏財), Ventures (食傷生財) and Career (官殺 + the Month "career palace") are core
+        Four-Pillars readings. Home/property is the weakest fit for BaZi and is read indirectly — shown honestly rather than overclaimed.
+        The money domains describe traditional <em>disposition</em>, not advice or predicted outcomes.</div>
+    </div>`;
+}
+
 function renderSummary(){
   if(!chart){ document.getElementById('v-summary').innerHTML=''; return; }
   const {ec,noTime}=chart;
@@ -1026,6 +1125,8 @@ function renderSummary(){
       <div class="kv"><span class="k">Element balance</span><span class="v" style="text-align:left;max-width:64%">Most: <span class="${elClass(domEl)}">${EL_NAME[domEl]}</span>${missing.length?` · Missing: ${missing.map(e=>`<span class="${elClass(e)}">${EL_CN[e]}</span>`).join('、')} (an area to cultivate)`:' · all five present'}</span></div>
       <div class="kv"><span class="k">Current 10-yr luck</span><span class="v" style="text-align:left;max-width:64%">${luckLine}</span></div>
     </div>
+
+    ${domainHighlights(a)}
 
     <div class="block">
       <h3><span class="cjk">時運</span>Right now &amp; what's ahead</h3>
@@ -1253,15 +1354,63 @@ document.getElementById('go').addEventListener('click',async()=>{
     await window.__lunarReady;
     if(typeof window.Solar==='undefined') throw new Error("Calculation engine failed to load. Check your connection, or place lunar.js beside this file.");
     chart=buildChart();
-    chosenYongShen=null;
+    chosenYongShen = pendingYongShen;     // restore a saved element choice on auto-load; null on a fresh manual cast
     renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
     wireYongShen();
     document.getElementById('results').classList.remove('hidden');
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+    if(pendingYongShen){ const sb=document.querySelector('.tab[data-v="summary"]'); if(sb) sb.click(); }
+    pendingYongShen=null;                 // only auto-apply once
+    saveProfile();
   }catch(e){
     err.textContent=e.message||String(e); err.classList.remove('hidden');
   }
 });
+
+/* ---------- save details on this device (localStorage, fully guarded) ---------- */
+const LS_KEY='bazi-compass-profile';
+let pendingYongShen=null;
+const _el=id=>document.getElementById(id);
+function readForm(){ return {
+  bdate:_el('bdate').value, btime:_el('btime').value, noTime:_el('noTime').checked,
+  sex:_el('sex').value, lon:_el('lon').value, tz:_el('tz').value, useTst:_el('useTst').checked,
+  yongshen: (chosenYongShen&&chosenYongShen.length)?chosenYongShen:null }; }
+function saveProfile(){
+  if(!_el('remember') || !_el('remember').checked){ return; }
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(readForm())); savedNote(true); }catch(e){}
+}
+function loadProfile(){
+  try{
+    const raw=localStorage.getItem(LS_KEY); if(!raw) return null;
+    const p=JSON.parse(raw)||{};
+    if(p.bdate) _el('bdate').value=p.bdate;
+    if(p.btime) _el('btime').value=p.btime;
+    _el('noTime').checked=!!p.noTime; _el('btime').disabled=!!p.noTime;
+    if(p.sex) _el('sex').value=p.sex;
+    if(p.lon) _el('lon').value=p.lon;
+    if(p.tz) _el('tz').value=p.tz;
+    _el('useTst').checked=!!p.useTst; if(p.useTst) _el('adv').classList.add('open');
+    return p;
+  }catch(e){ return null; }
+}
+function clearProfile(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} }
+function savedNote(on){ const n=_el('savedNote'); if(n) n.textContent = on?'✓ Saved on this device — it will load automatically next time.':''; }
+_el('forget').addEventListener('click',()=>{
+  clearProfile();
+  if(_el('remember')) _el('remember').checked=false;
+  const n=_el('savedNote'); if(n) n.textContent='Saved details cleared from this device.';
+});
+function persistYongShen(){ if(chart) saveProfile(); }  // called from applyYongShen
+
+/* On startup: populate from saved details and, if present, cast automatically. */
+(function initFromStorage(){
+  const p=loadProfile();
+  if(p && p.bdate){
+    savedNote(true);
+    pendingYongShen = (p.yongshen&&p.yongshen.length)?p.yongshen:null;
+    window.__lunarReady.then(()=>{ try{ _el('go').click(); }catch(e){} });
+  }
+})();
 
 /* service worker — registers on a real host (GitHub Pages); silently no-ops in sandboxes */
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
