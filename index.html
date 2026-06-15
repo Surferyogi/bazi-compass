@@ -267,7 +267,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:15-01:30";
+const VERSION = "v2026:06:15-02:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -1018,7 +1018,14 @@ function dayRow(d,kind){
 
 let homeFacing='';
 function homeRemedy(fav, facing){
-  if(!fav||!fav.length) return 'Choose your favourable element on the Natal tab to unlock tailored home remedies. These are traditional five-element (feng-shui) balancing ideas, not BaZi and not guarantees.';
+  if(!fav||!fav.length){
+    let base='Choose your favourable element on the Natal tab to unlock tailored home remedies. These are traditional five-element (feng-shui) balancing ideas, not BaZi and not guarantees.';
+    if(facing && FACING_EL[facing]){
+      const fe=FACING_EL[facing];
+      base = `<b>Your ${FACING_LABEL[facing]}-facing home sits in a ${EL_NAME[fe]} aspect.</b> Whether that helps or hinders you depends on your favourable element — ${base}`;
+    }
+    return base;
+  }
   const drain=['mu','huo','tu','jin','shui'].filter(e=>!fav.includes(e));
   const bring=fav.map(e=>`<span class="${elClass(e)}">${EL_NAME[e]}</span> — ${BOOST_OF_EL[e]}; ${COLOR_OF_EL[e]}; favour the <em>${DIR_OF_EL[e]}</em> sector`).join('. And ');
   let out=`<b>Bring in your favourable elements.</b> ${bring}.`;
@@ -1239,6 +1246,17 @@ function renderSummary(){
     <div class="block" style="border-color:rgba(178,58,46,.3);">
       <div class="interp" style="margin:0;">Read these as a <em>mirror and a calendar</em>, not a verdict. Every line is a computed fact plus its traditional meaning — the choices, and the life, stay yours.</div>
     </div>`;
+
+  const hf=document.getElementById('homeFacing');
+  if(hf){
+    hf.value=homeFacing||'';
+    hf.addEventListener('change',()=>{
+      homeFacing=hf.value;
+      const txt=document.getElementById('homeRemedyText');
+      if(txt) txt.innerHTML=homeRemedy(chosenYongShen||[], homeFacing);
+      if(typeof saveProfile==='function') saveProfile();
+    });
+  }
 }
 
 const EL_TRAIT={
@@ -1275,17 +1293,6 @@ function doDontBlock(){
       <div class="kv"><span class="k">On clash days/years</span><span class="v" style="text-align:left;max-width:66%">When the app flags a clash (<span class="cjk">沖</span>, marked <span style="color:#e7a59c">✕</span>), avoid big <em>irreversible</em> moves — signing, moving, launching. Time them just before or after the jolt, not on it. <span class="en-inline">(why: clashes bring instability)</span></span></div>
       <div class="kv"><span class="k">Don't catastrophise</span><span class="v" style="text-align:left;max-width:66%">An "unfavourable" stretch isn't doom — it's a season for consolidation, caution and learning. Effort still pays; it just meets more friction.</span></div>
     </div>`;
-
-  const hf=document.getElementById('homeFacing');
-  if(hf){
-    hf.value=homeFacing||'';
-    hf.addEventListener('change',()=>{
-      homeFacing=hf.value;
-      const txt=document.getElementById('homeRemedyText');
-      if(txt) txt.innerHTML=homeRemedy(chosenYongShen||[], homeFacing);
-      if(typeof saveProfile==='function') saveProfile();
-    });
-  }
 }
 
 function renderGuide(){
