@@ -236,7 +236,7 @@
       <button class="tab active" data-v="summary"><span class="cjk">概要</span>Summary</button>
       <button class="tab" data-v="natal"><span class="cjk">命盤</span>Natal chart</button>
       <button class="tab" data-v="luck"><span class="cjk">大運</span>Luck cycles</button>
-      <button class="tab" data-v="today"><span class="cjk">今日</span>Today</button>
+      <button class="tab" data-v="today"><span class="cjk">日運</span>Day</button>
       <button class="tab" data-v="dates"><span class="cjk">流年</span>Key dates</button>
       <button class="tab" data-v="guide"><span class="cjk">指南</span>What it means</button>
     </div>
@@ -267,7 +267,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:14-10:30";
+const VERSION = "v2026:06:15-01:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -302,6 +302,21 @@ const BOOST_OF_EL={
   tu:"ceramics and stone, steady routines, grounded central spaces, earthy yellow-brown tones",
   jin:"metal objects and white/grey tones, decluttering and good systems, music, precise hobbies",
   shui:"a water feature or aquarium, blue-black tones, travel, swimming, quiet reflection"};
+// element that GENERATES X (its "feeder"): used for remedy "channel, don't fight" logic
+const GEN_OF={huo:"mu",tu:"huo",jin:"tu",shui:"jin",mu:"shui"};
+// compass facing → its element (standard 後天八卦 sectors)
+const FACING_EL={N:"shui",NE:"tu",E:"mu",SE:"mu",S:"huo",SW:"tu",W:"jin",NW:"jin"};
+const FACING_LABEL={N:"North",NE:"North-east",E:"East",SE:"South-east",S:"South",SW:"South-west",W:"West",NW:"North-west"};
+// what most STRENGTHENS each element at home — to keep quiet when an element drains you
+const ENHANCER_WARN={mu:"large plants and tall wooden masses",huo:"strong red décor and intense lighting",tu:"heavy ceramics, stone and earth-tone masses",jin:"metal fixtures and especially metal wind chimes",shui:"large water features and fish tanks"};
+// traditional TCM five-element → body system + gentle self-care (NOT medical advice)
+const WELLNESS={
+  mu:{sys:"liver &amp; gallbladder, eyes, tendons, and mood",care:"gentle movement and stretching, time outdoors, and easing frustration; leafy greens"},
+  huo:{sys:"heart &amp; small intestine, circulation, and sleep",care:"not over-exerting, calming the mind before bed, and easy on stimulants"},
+  tu:{sys:"spleen &amp; stomach and digestion",care:"regular warm meals, steady routine, and not over-thinking"},
+  jin:{sys:"lungs &amp; large intestine, skin, and breath",care:"breathing practice, fresh air, hydration, and letting go of clutter"},
+  shui:{sys:"kidneys &amp; bladder, bones, ears, and your energy reserves",care:"rest, good hydration, keeping warm, and not over-spending your energy"}
+};
 // 六合 pairs / 三合 groups / 六害 pairs
 const LIU_HE = {"子":"丑","丑":"子","寅":"亥","亥":"寅","卯":"戌","戌":"卯","辰":"酉","酉":"辰","巳":"申","申":"巳","午":"未","未":"午"};
 const SAN_HE = [["申","子","辰"],["亥","卯","未"],["寅","午","戌"],["巳","酉","丑"]];
@@ -776,46 +791,76 @@ function renderLuck(){
   document.getElementById('v-luck').innerHTML=html;
 }
 
-/* ---------- RENDER: today ---------- */
+/* ---------- RENDER: day fortune & wellness (date-selectable) ---------- */
+let dayDate=null; // null = today
 function renderToday(){
   const {ec}=chart, Solar=window.Solar;
-  const now=new Date();
-  const sToday=Solar.fromYmdHms(now.getFullYear(),now.getMonth()+1,now.getDate(),12,0,0);
-  const lToday=sToday.getLunar();
-  const dayGz=lToday.getDayInGanZhi(), monthGz=lToday.getMonthInGanZhi(), yearGz=lToday.getYearInGanZhi();
+  const today=new Date();
+  const d = dayDate || today;
+  const isToday = d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth() && d.getDate()===today.getDate();
+  const sDay=Solar.fromYmdHms(d.getFullYear(),d.getMonth()+1,d.getDate(),12,0,0);
+  const lDay=sDay.getLunar();
+  const dayGz=lDay.getDayInGanZhi();
   const dmg=ec.getDayGan();
-  // ten-god of today's day stem relative to your day master, via library on a fresh eightchar? use relation function
   const tg=tenGodOf(dmg, ganChar(dayGz));
-  const natalDayZhi=zhiChar(ec.getDay());
-  const tags=relTags(zhiChar(dayGz),natalDayZhi,'your Day branch');
-  const yi=(lToday.getDayYi()||[]).slice(0,8), ji=(lToday.getDayJi()||[]).slice(0,8);
-  const yiEn=withEnglish(()=>(lToday.getDayYi()||[]).slice(0,8));
-  const jiEn=withEnglish(()=>(lToday.getDayJi()||[]).slice(0,8));
-  const star=lToday.getDayNineStar?lToday.getDayNineStar().toString():null;
-  const starEn=lToday.getDayNineStar?spaceCaps(withEnglish(()=>lToday.getDayNineStar().toString())):null;
-  const chong=lToday.getDayChongDesc?lToday.getDayChongDesc():null;
+  const natalDayZhi=zhiChar(ec.getDay()), natalYearZhi=zhiChar(ec.getYear());
+  const yi=(lDay.getDayYi()||[]).slice(0,8), ji=(lDay.getDayJi()||[]).slice(0,8);
+  const yiEn=withEnglish(()=>(lDay.getDayYi()||[]).slice(0,8));
+  const jiEn=withEnglish(()=>(lDay.getDayJi()||[]).slice(0,8));
+  const star=lDay.getDayNineStar?lDay.getDayNineStar().toString():null;
+  const starEn=lDay.getDayNineStar?spaceCaps(withEnglish(()=>lDay.getDayNineStar().toString())):null;
+  const chong=lDay.getDayChongDesc?lDay.getDayChongDesc():null;
   const chongAnimal=chong?ANIMAL_EN[chong.slice(-1)]:null;
-  const xi=lToday.getDayPositionXiDesc?lToday.getDayPositionXiDesc():null;
-  const cai=lToday.getDayPositionCaiDesc?lToday.getDayPositionCaiDesc():null;
-  const g=ganChar(dayGz), z=zhiChar(dayGz);
+  const xi=lDay.getDayPositionXiDesc?lDay.getDayPositionXiDesc():null;
+  const cai=lDay.getDayPositionCaiDesc?lDay.getDayPositionCaiDesc():null;
+  const fu=lDay.getDayPositionFuDesc?lDay.getDayPositionFuDesc():null;
+  const tianshen=lDay.getDayTianShenType?lDay.getDayTianShenType():null; // 黄道/黑道
+  const g=ganChar(dayGz), z=zhiChar(dayGz), dayEl=GAN_EL[g];
+  const fav=chosenYongShen||[];
+
+  // personal "for you" verdict — same transparent factors as the best/worst ranking
+  const sc=scoreDay(lDay, natalDayZhi, natalYearZhi, fav);
+  const verdict = sc.s>=2 ? {t:'A supportive day for you',c:'#9fcba9'}
+    : sc.s<=-2 ? {t:'A day to pace yourself',c:'#e7a59c'}
+    : {t:'A mixed / neutral day',c:'var(--gold)'};
+  const factorTags = sc.pos.map(t=>`<span class="tag he">${t}</span>`).concat(sc.neg.map(t=>`<span class="tag clash">${t}</span>`)).join('');
+
+  // wellness — traditional five-element (TCM) correspondences, NOT medical advice
+  const w=WELLNESS[dayEl];
+  const taxing = (fav.length && !fav.includes(dayEl)) || (clashOf(natalDayZhi)===z);
+  const supportive = fav.length && fav.includes(dayEl);
+  const wellNote = supportive ? `Your energy is well-supported today — a good day for activity and tackling what needs stamina.`
+    : taxing ? `The day pulls a little on your energy${clashOf(natalDayZhi)===z?' (its branch clashes your own)':''}, so favour rest, pacing, and not over-committing.`
+    : `A steady day energy-wise — keep your usual rhythm.`;
+
+  const ymd=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   document.getElementById('v-today').innerHTML=`
     <div class="block">
-      <div class="today-head">
-        <span class="big cjk"><span class="${elClass(GAN_EL[g])}">${g}</span><span class="${elClass(ZHI_EL[z])}">${z}</span></span>
-        <span class="date">${sToday.toYmd()} · 農曆 <span class="cjk">${lToday.getMonthInChinese()}月${lToday.getDayInChinese()}</span> <span class="en-inline">(lunar month ${lToday.getMonth()}, day ${lToday.getDay()})</span></span>
+      <div class="row-inline" style="gap:10px;flex-wrap:wrap;">
+        <label style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--paper-dim);">Pick a date</label>
+        <input type="date" id="dayPick" value="${ymd}" min="1901-01-01" max="2099-12-31" style="width:auto;">
+        <button id="dayToday" class="adv-toggle" style="margin:0;">Today</button>
       </div>
-      <div class="en-cap" style="padding-left:0;margin:-2px 0 6px;">${STEM_EN[g]||''} · ${BRANCH_EN[z]||''}</div>
-      <div class="kv"><span class="k">Today vs your Day Master <span class="cjk">${dmg}</span> <span class="en-inline">${STEM_EN[dmg]||''}</span></span><span class="v"><span class="cjk">${tg||'—'}</span> <span class="en-inline">${tg?(SHISHEN_SHORT[tg]||''):''}</span></span></div>
-      ${chosenYongShen&&chosenYongShen.length?`<div class="kv"><span class="k">Today's element for you</span><span class="v">${favMark(GAN_EL[g])} <span class="en-inline">(day stem ${EL_CN[GAN_EL[g]]})</span></span></div>`:''}
-      ${tg&&SHISHEN[tg]?`<div class="interp" style="margin-top:6px;">${SHISHEN[tg]}</div>`:''}
-      <div style="margin-top:10px;">${tags.join('')||'<span class="empty">Today\u2019s branch neither clashes nor combines your Day branch.</span>'}</div>
     </div>
 
     <div class="block">
-      <h3><span class="cjk">黃曆</span>Almanac for today</h3>
+      <div class="today-head">
+        <span class="big cjk"><span class="${elClass(GAN_EL[g])}">${g}</span><span class="${elClass(ZHI_EL[z])}">${z}</span></span>
+        <span class="date">${sDay.toYmd()}${isToday?' · <span style="color:var(--gold)">today</span>':''} · 農曆 <span class="cjk">${lDay.getMonthInChinese()}月${lDay.getDayInChinese()}</span></span>
+      </div>
+      <div class="en-cap" style="padding-left:0;margin:-2px 0 8px;">${STEM_EN[g]||''} · ${BRANCH_EN[z]||''}</div>
+      <div class="kv"><span class="k">For you</span><span class="v"><em style="color:${verdict.c}">${verdict.t}</em></span></div>
+      <div style="margin:8px 0;">${factorTags||'<span class="empty">No strong interaction with your chart today.</span>'}</div>
+      <div class="kv"><span class="k">This day vs your Day Master <span class="cjk">${dmg}</span></span><span class="v"><span class="cjk">${tg||'—'}</span> <span class="en-inline">${tg?(SHISHEN_SHORT[tg]||''):''}</span></span></div>
+      ${tg&&SHISHEN[tg]?`<div class="interp" style="margin-top:6px;">${SHISHEN[tg]}</div>`:''}
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">黃曆</span>Almanac — what's good, what to avoid</h3>
+      <div class="kv" style="margin-bottom:8px;"><span class="k">Day quality</span><span class="v"><span class="cjk">${tianshen||'—'}</span> <span class="en-inline">${tianshen==='黄道'?'(auspicious day)':tianshen==='黑道'?'(inauspicious day)':''}</span></span></div>
       <div class="yiji">
-        <div class="col yi"><div class="h">宜 · Favourable</div>
+        <div class="col yi"><div class="h">宜 · Good for</div>
           <div class="cjk">${yi.length?yi.join('、'):'<span style="font-style:italic">N/A</span>'}</div>
           ${yiEn.length?`<div class="en-inline" style="margin-top:4px;display:block;">${yiEn.join(' · ')}</div>`:''}</div>
         <div class="col ji"><div class="h">忌 · Avoid</div>
@@ -826,9 +871,25 @@ function renderToday(){
       ${star?`<div class="kv"><span class="k">Nine Star 九星</span><span class="v"><span class="cjk">${star}</span> <span class="en-inline">${starEn||''}</span></span></div>`:''}
       ${xi?`<div class="kv"><span class="k">Joy direction 喜神</span><span class="v"><span class="cjk">${xi}</span> <span class="en-inline">${dirEN(xi)}</span></span></div>`:''}
       ${cai?`<div class="kv"><span class="k">Wealth direction 財神</span><span class="v"><span class="cjk">${cai}</span> <span class="en-inline">${dirEN(cai)}</span></span></div>`:''}
-      <div class="src">宜/忌 and directions are the traditional 老黃曆 values for the calendar day (engine: lunar-javascript),
-      shared by everyone today. English terms are the engine's own translations. The personal layer above is your Day-branch relationship with today's branch.</div>
+      ${fu?`<div class="kv"><span class="k">Fortune direction 福神</span><span class="v"><span class="cjk">${fu}</span> <span class="en-inline">${dirEN(fu)}</span></span></div>`:''}
+      <div class="src">宜/忌, day quality and directions are the traditional 老黃曆 values for the calendar day (engine: lunar-javascript) — the same for everyone. The "For you" verdict above is the personal layer: this day's relationship with your chart.</div>
+    </div>
+
+    <div class="block">
+      <h3><span class="cjk">養生</span>Wellness for the day</h3>
+      <div class="kv"><span class="k">Day element</span><span class="v"><span class="cjk ${elClass(dayEl)}">${EL_CN[dayEl]}</span> ${EL_NAME[dayEl]}</span></div>
+      <div class="interp">A <em>${EL_NAME[dayEl].split(' ')[0]}</em> day — in traditional five-element wellness this resonates with the <em>${w.sys}</em>. Support it with ${w.care}. ${wellNote}</div>
+      <div class="src">Traditional five-element (TCM-style) correspondences — <em>general self-care, not medical advice</em>. For health concerns, see a qualified professional.</div>
     </div>`;
+
+  // wire the date controls
+  const pick=document.getElementById('dayPick');
+  if(pick) pick.addEventListener('change',()=>{
+    const v=pick.value; if(!v) return; const [Y,M,D]=v.split('-').map(Number);
+    dayDate=new Date(Y,M-1,D); renderToday();
+  });
+  const tb=document.getElementById('dayToday');
+  if(tb) tb.addEventListener('click',()=>{ dayDate=null; renderToday(); });
 }
 /* ten-god of a stem relative to day master — derived from element relation + yin/yang */
 const GAN_YANG={"甲":1,"丙":1,"戊":1,"庚":1,"壬":1,"乙":0,"丁":0,"己":0,"辛":0,"癸":0};
@@ -955,6 +1016,25 @@ function dayRow(d,kind){
   return `<div class="event"><div class="when">${f}<small class="cjk">${d.gz}日</small></div><div class="what">${tags||'<span class="empty">neutral</span>'}</div></div>`;
 }
 
+let homeFacing='';
+function homeRemedy(fav, facing){
+  if(!fav||!fav.length) return 'Choose your favourable element on the Natal tab to unlock tailored home remedies. These are traditional five-element (feng-shui) balancing ideas, not BaZi and not guarantees.';
+  const drain=['mu','huo','tu','jin','shui'].filter(e=>!fav.includes(e));
+  const bring=fav.map(e=>`<span class="${elClass(e)}">${EL_NAME[e]}</span> — ${BOOST_OF_EL[e]}; ${COLOR_OF_EL[e]}; favour the <em>${DIR_OF_EL[e]}</em> sector`).join('. And ');
+  let out=`<b>Bring in your favourable elements.</b> ${bring}.`;
+  out+=`<br><br><b>Keep your draining elements quiet:</b> ${drain.map(e=>`${EL_CN[e]} ${EL_NAME[e].split(' ')[0]} (${ENHANCER_WARN[e]})`).join('; ')}.`;
+  if(facing && FACING_EL[facing]){
+    const fe=FACING_EL[facing], leak=GEN[fe], feeder=GEN_OF[fe];
+    if(fav.includes(fe)){
+      out+=`<br><br><b>Your ${FACING_LABEL[facing]}-facing home sits in a ${EL_NAME[fe]} aspect — favourable for you.</b> Reinforce it: ${BOOST_OF_EL[fe]}.`;
+    } else if(fav.includes(leak)){
+      out+=`<br><br><b>Your ${FACING_LABEL[facing]}-facing home sits in a ${EL_NAME[fe]} aspect — which drains you.</b> Don't fight it — <em>channel</em> it: add <span class="${elClass(leak)}">${EL_NAME[leak]}</span> (${BOOST_OF_EL[leak]}), which absorbs the ${EL_CN[fe]} and turns it into your favourable ${EL_CN[leak]}. Avoid strengthening the ${EL_CN[fe]} itself (${ENHANCER_WARN[fe]}) or the ${EL_CN[feeder]} that feeds it.`;
+    } else {
+      out+=`<br><br><b>Your ${FACING_LABEL[facing]}-facing home sits in a ${EL_NAME[fe]} aspect — which drains you.</b> Lean on your favourable elements (${fav.map(e=>EL_CN[e]).join(' / ')}) in the rooms you use most, and keep the ${EL_CN[fe]} quiet (${ENHANCER_WARN[fe]}) along with the ${EL_CN[feeder]} that feeds it. You can't change the facing, but you control the interior and which way you face when it matters.`;
+    }
+  }
+  return out;
+}
 function domainHighlights(a){
   const {ec,noTime}=chart; const dmEl=GAN_EL[ec.getDayGan()];
   const tgC=tenGodCounts(); const cat={};
@@ -1039,6 +1119,13 @@ function domainHighlights(a){
         <div class="kv"><span class="k">Resource star 印</span><span class="v">${rN} — ${promo(rN)}</span></div>
         <div class="kv"><span class="k">Earth (land)</span><span class="v">${earthN} in chart</span></div>
         <div class="interp">${hRead}</div>
+        <div class="kv" style="margin-top:8px;"><span class="k">My home faces</span><span class="v"><select id="homeFacing" style="width:auto;padding:6px 8px;font-size:13px;">
+          <option value="">— select —</option>
+          <option value="N">North</option><option value="NE">North-east</option><option value="E">East</option><option value="SE">South-east</option>
+          <option value="S">South</option><option value="SW">South-west</option><option value="W">West</option><option value="NW">North-west</option>
+        </select></span></div>
+        <div class="interp" id="homeRemedyText">${homeRemedy(fav, homeFacing)}</div>
+        <div class="src" style="margin-top:6px;">Home remedies are traditional <em>five-element (feng-shui) balancing</em> — a reasoned adjustment, not BaZi and not a guarantee. A practitioner reading your actual floor plan can be more precise.</div>
       </div>
       <div class="src">Wealth, Investments (偏財), Ventures (食傷生財) and Career (官殺 + the Month "career palace") are core
         Four-Pillars readings. Home/property is the weakest fit for BaZi and is read indirectly — shown honestly rather than overclaimed.
@@ -1188,6 +1275,17 @@ function doDontBlock(){
       <div class="kv"><span class="k">On clash days/years</span><span class="v" style="text-align:left;max-width:66%">When the app flags a clash (<span class="cjk">沖</span>, marked <span style="color:#e7a59c">✕</span>), avoid big <em>irreversible</em> moves — signing, moving, launching. Time them just before or after the jolt, not on it. <span class="en-inline">(why: clashes bring instability)</span></span></div>
       <div class="kv"><span class="k">Don't catastrophise</span><span class="v" style="text-align:left;max-width:66%">An "unfavourable" stretch isn't doom — it's a season for consolidation, caution and learning. Effort still pays; it just meets more friction.</span></div>
     </div>`;
+
+  const hf=document.getElementById('homeFacing');
+  if(hf){
+    hf.value=homeFacing||'';
+    hf.addEventListener('change',()=>{
+      homeFacing=hf.value;
+      const txt=document.getElementById('homeRemedyText');
+      if(txt) txt.innerHTML=homeRemedy(chosenYongShen||[], homeFacing);
+      if(typeof saveProfile==='function') saveProfile();
+    });
+  }
 }
 
 function renderGuide(){
@@ -1374,7 +1472,7 @@ const _el=id=>document.getElementById(id);
 function readForm(){ return {
   bdate:_el('bdate').value, btime:_el('btime').value, noTime:_el('noTime').checked,
   sex:_el('sex').value, lon:_el('lon').value, tz:_el('tz').value, useTst:_el('useTst').checked,
-  yongshen: (chosenYongShen&&chosenYongShen.length)?chosenYongShen:null }; }
+  yongshen: (chosenYongShen&&chosenYongShen.length)?chosenYongShen:null, facing: homeFacing||null }; }
 function saveProfile(){
   if(!_el('remember') || !_el('remember').checked){ return; }
   try{ localStorage.setItem(LS_KEY, JSON.stringify(readForm())); savedNote(true); }catch(e){}
@@ -1390,6 +1488,7 @@ function loadProfile(){
     if(p.lon) _el('lon').value=p.lon;
     if(p.tz) _el('tz').value=p.tz;
     _el('useTst').checked=!!p.useTst; if(p.useTst) _el('adv').classList.add('open');
+    if(p.facing) homeFacing=p.facing;
     return p;
   }catch(e){ return null; }
 }
