@@ -267,7 +267,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:15-02:30";
+const VERSION = "v2026:06:15-03:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -309,6 +309,13 @@ const FACING_EL={N:"shui",NE:"tu",E:"mu",SE:"mu",S:"huo",SW:"tu",W:"jin",NW:"jin
 const FACING_LABEL={N:"North",NE:"North-east",E:"East",SE:"South-east",S:"South",SW:"South-west",W:"West",NW:"North-west"};
 // what most STRENGTHENS each element at home — to keep quiet when an element drains you
 const ENHANCER_WARN={mu:"large plants and tall wooden masses",huo:"strong red décor and intense lighting",tu:"heavy ceramics, stone and earth-tone masses",jin:"metal fixtures and especially metal wind chimes",shui:"large water features and fish tanks"};
+// shading materials grouped by the element they carry (for west-sun guidance)
+const SHADE_BY_EL={
+  mu:"timber or bamboo louvres, plantation wooden shutters, and a leafy plant screen",
+  huo:"warm red-toned fabric blinds (only sparingly)",
+  tu:"earth-toned heavy drapes or stone / terracotta screens",
+  jin:"aluminium or steel louvres and metallic / reflective roller blinds or window film",
+  shui:"blue or black blinds and layered curtains"};
 // traditional TCM five-element → body system + gentle self-care (NOT medical advice)
 const WELLNESS={
   mu:{sys:"liver &amp; gallbladder, eyes, tendons, and mood",care:"gentle movement and stretching, time outdoors, and easing frustration; leafy greens"},
@@ -1017,6 +1024,22 @@ function dayRow(d,kind){
 }
 
 let homeFacing='';
+function shadeTip(fav, facing){
+  if(!(facing==='W'||facing==='NW'||facing==='SW')) return '';
+  const fe=FACING_EL[facing], feeder=GEN_OF[fe];
+  let t=`<br><br><b>Shading the west sun (西晒):</b> the afternoon heat and glare on this aspect are a real comfort issue — and the good news is that good shading and good element-balance usually align.`;
+  if(fav&&fav.length){
+    t+=` Prefer shading in your favourable elements — ${fav.map(e=>SHADE_BY_EL[e]).join('; ')}.`;
+    const avoid=[];
+    if(!fav.includes(fe)) avoid.push(SHADE_BY_EL[fe]);
+    if(feeder && !fav.includes(feeder)) avoid.push(SHADE_BY_EL[feeder]);
+    if(avoid.length) t+=` Go easy on ${avoid.join(' and ')} — those reinforce the draining ${EL_CN[fe]}${(feeder&&!fav.includes(feeder))?' / '+EL_CN[feeder]:''}.`;
+    t+=` External shading (deep eaves, an outdoor screen or plants outside the glass) beats internal blinds for heat, and any water feature already on this side works in your favour.`;
+  } else {
+    t+=` Effective, low-cost options: external shading or deep eaves, timber or bamboo louvres, plantation shutters, and leafy plants at the glass. Set your favourable element on the Natal tab and this will name the best material choices for you.`;
+  }
+  return t;
+}
 function homeRemedy(fav, facing){
   if(!fav||!fav.length){
     let base='Choose your favourable element on the Natal tab to unlock tailored home remedies. These are traditional five-element (feng-shui) balancing ideas, not BaZi and not guarantees.';
@@ -1024,7 +1047,7 @@ function homeRemedy(fav, facing){
       const fe=FACING_EL[facing];
       base = `<b>Your ${FACING_LABEL[facing]}-facing home sits in a ${EL_NAME[fe]} aspect.</b> Whether that helps or hinders you depends on your favourable element — ${base}`;
     }
-    return base;
+    return base + shadeTip(fav, facing);
   }
   const drain=['mu','huo','tu','jin','shui'].filter(e=>!fav.includes(e));
   const bring=fav.map(e=>`<span class="${elClass(e)}">${EL_NAME[e]}</span> — ${BOOST_OF_EL[e]}; ${COLOR_OF_EL[e]}; favour the <em>${DIR_OF_EL[e]}</em> sector`).join('. And ');
@@ -1040,6 +1063,7 @@ function homeRemedy(fav, facing){
       out+=`<br><br><b>Your ${FACING_LABEL[facing]}-facing home sits in a ${EL_NAME[fe]} aspect — which drains you.</b> Lean on your favourable elements (${fav.map(e=>EL_CN[e]).join(' / ')}) in the rooms you use most, and keep the ${EL_CN[fe]} quiet (${ENHANCER_WARN[fe]}) along with the ${EL_CN[feeder]} that feeds it. You can't change the facing, but you control the interior and which way you face when it matters.`;
     }
   }
+  out += shadeTip(fav, facing);
   return out;
 }
 function domainHighlights(a){
