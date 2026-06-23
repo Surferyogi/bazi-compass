@@ -170,6 +170,18 @@
     <div class="ver" id="ver"></div>
   </header>
 
+  <div id="results">
+    <div class="tabs">
+      <button class="tab" data-v="settings"><span class="cjk">設定</span>Settings</button>
+      <button class="tab" data-v="summary"><span class="cjk">人生</span>Life</button>
+      <button class="tab" data-v="natal"><span class="cjk">命盤</span>Natal chart</button>
+      <button class="tab" data-v="luck"><span class="cjk">大運</span>Luck cycles</button>
+      <button class="tab active" data-v="today"><span class="cjk">日運</span>Day</button>
+      <button class="tab" data-v="dates"><span class="cjk">流年</span>Key dates</button>
+      <button class="tab" data-v="guide"><span class="cjk">指南</span>What it means</button>
+    </div>
+
+    <section class="view" id="v-settings">
   <div class="note">
     <b>What this is — and isn't.</b> The chart, elements, Ten Gods, luck cycles, and clash / combination
     relationships below are <b>deterministic calendar mathematics</b> computed from your exact birth moment
@@ -231,20 +243,13 @@
   </div>
 
   <!-- RESULTS -->
-  <div id="results" class="hidden">
-    <div class="tabs">
-      <button class="tab active" data-v="summary"><span class="cjk">概要</span>Summary</button>
-      <button class="tab" data-v="natal"><span class="cjk">命盤</span>Natal chart</button>
-      <button class="tab" data-v="luck"><span class="cjk">大運</span>Luck cycles</button>
-      <button class="tab" data-v="today"><span class="cjk">日運</span>Day</button>
-      <button class="tab" data-v="dates"><span class="cjk">流年</span>Key dates</button>
-      <button class="tab" data-v="guide"><span class="cjk">指南</span>What it means</button>
-    </div>
+      <div id="ysHost"></div>
+    </section>
 
-    <section class="view active" id="v-summary"></section>
+    <section class="view" id="v-summary"></section>
     <section class="view" id="v-natal"></section>
     <section class="view" id="v-luck"></section>
-    <section class="view" id="v-today"></section>
+    <section class="view active" id="v-today"></section>
     <section class="view" id="v-dates"></section>
     <section class="view" id="v-guide"></section>
   </div>
@@ -267,7 +272,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:15-03:30";
+const VERSION = "v2026:06:15-04:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -609,7 +614,7 @@ function favMark(el){
 function applyYongShen(els){
   chosenYongShen = els.slice();
   renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
-  wireYongShen();
+  renderSettings(); wireYongShen();
   if(typeof saveProfile==='function') saveProfile();   // persist the element choice on this device
   // surface the now-personalised Summary so the choice is immediately visible
   const sb=document.querySelector('.tab[data-v="summary"]'); if(sb) sb.click();
@@ -639,6 +644,10 @@ function wireYongShen(){
   });
 }
 
+function renderSettings(){
+  const host=document.getElementById('ysHost'); if(!host) return;
+  host.innerHTML = chart ? renderYongShen() : '';
+}
 function renderNatal(){
   const {ec,lunar,solar,noTime,tstNote}=chart;
   const pillars=[
@@ -710,7 +719,9 @@ function renderNatal(){
       invented "strength %"; a full verdict also weighs hidden stems and any combinations/clashes among the branches.</div>
     </div>
 
-    ${renderYongShen()}
+    <div class="block" style="border-color:rgba(205,191,142,.3);">
+      <div class="interp" style="margin:0;">Your favourable element (<span class="cjk">用神 / 喜用神</span>) — the three classical methods and the chooser — now lives on the <em>Settings</em> tab. Choose it there and the whole app personalises around it.</div>
+    </div>
 
     <div class="block">
       <h3><span class="cjk">五行</span>Five Elements — primary tally</h3>
@@ -1234,7 +1245,7 @@ function renderSummary(){
 
   document.getElementById('v-summary').innerHTML = `
     <div class="block">
-      <h3><span class="cjk">概要</span>Your headlines</h3>
+      <h3><span class="cjk">人生</span>Your headlines</h3>
       <div class="interp" style="margin-top:0;margin-bottom:6px;">The whole assessment, distilled. Tap any tab for the detail behind each line.</div>
       <div class="kv"><span class="k">Who you are</span><span class="v" style="text-align:left;max-width:64%"><span class="cjk ${elClass(dmEl)}">${dmg}</span> ${STEM_EN[dmg]} — ${dmTraitShort}</span></div>
       <div class="kv"><span class="k">Your energy</span><span class="v" style="text-align:left;max-width:64%"><em>${leanWord}</em> — ${leanMean}</span></div>
@@ -1485,10 +1496,9 @@ document.getElementById('go').addEventListener('click',async()=>{
     chart=buildChart();
     chosenYongShen = pendingYongShen;     // restore a saved element choice on auto-load; null on a fresh manual cast
     renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
-    wireYongShen();
-    document.getElementById('results').classList.remove('hidden');
+    renderSettings(); wireYongShen();
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
-    if(pendingYongShen){ const sb=document.querySelector('.tab[data-v="summary"]'); if(sb) sb.click(); }
+    const dt=document.querySelector('.tab[data-v="today"]'); if(dt) dt.click();
     pendingYongShen=null;                 // only auto-apply once
     saveProfile();
   }catch(e){
@@ -1539,6 +1549,8 @@ function persistYongShen(){ if(chart) saveProfile(); }  // called from applyYong
     savedNote(true);
     pendingYongShen = (p.yongshen&&p.yongshen.length)?p.yongshen:null;
     window.__lunarReady.then(()=>{ try{ _el('go').click(); }catch(e){} });
+  } else {
+    const st=document.querySelector('.tab[data-v="settings"]'); if(st) st.click();
   }
 })();
 
