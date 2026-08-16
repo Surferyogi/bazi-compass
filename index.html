@@ -178,6 +178,7 @@
       <button class="tab" data-v="luck"><span class="cjk">大運</span>Luck cycles</button>
       <button class="tab active" data-v="today"><span class="cjk">日運</span>Day</button>
       <button class="tab" data-v="dates"><span class="cjk">流年</span>Key dates</button>
+      <button class="tab" data-v="elect"><span class="cjk">擇日</span>Choose a date</button>
       <button class="tab" data-v="guide"><span class="cjk">指南</span>What it means</button>
     </div>
 
@@ -251,6 +252,7 @@
     <section class="view" id="v-luck"></section>
     <section class="view active" id="v-today"></section>
     <section class="view" id="v-dates"></section>
+    <section class="view" id="v-elect"></section>
     <section class="view" id="v-guide"></section>
   </div>
 
@@ -272,7 +274,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:15-04:30";
+const VERSION = "v2026:06:15-05:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -613,7 +615,7 @@ function favMark(el){
 }
 function applyYongShen(els){
   chosenYongShen = els.slice();
-  renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
+  renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderElect(); renderGuide();
   renderSettings(); wireYongShen();
   if(typeof saveProfile==='function') saveProfile();   // persist the element choice on this device
   // surface the now-personalised Summary so the choice is immediately visible
@@ -644,6 +646,101 @@ function wireYongShen(){
   });
 }
 
+/* ---------- 擇日 date election: best days for an event, by chart + almanac ---------- */
+// Event → the real 宜/忌 almanac terms the engine uses (verified against lunar-javascript, simplified). No invented terms.
+const ELECT_EVENTS=[
+  {id:'move',    cn:'入宅',   en:'Move into a new home',        yi:['入宅','移徙','进人口']},
+  {id:'contract',cn:'立券',   en:'Sign a contract / deal',      yi:['立券','交易','纳财']},
+  {id:'open',    cn:'開市',   en:'Open a business / launch',    yi:['开市','交易','纳财','挂匾']},
+  {id:'wedding', cn:'嫁娶',   en:'Wedding / marriage',          yi:['嫁娶','纳采','订盟']},
+  {id:'reno',    cn:'動土',   en:'Renovation / groundbreaking', yi:['动土','修造','起基','竖柱','上梁','盖屋']},
+  {id:'bed',     cn:'安床',   en:'Install a bed',               yi:['安床']},
+  {id:'travel',  cn:'出行',   en:'Travel',                      yi:['出行','赴任','乘船']},
+  {id:'job',     cn:'赴任',   en:'Start a job / take office',   yi:['赴任']},
+  {id:'study',   cn:'入學',   en:'Start school / studies',      yi:['入学','习艺']},
+  {id:'pray',    cn:'祈福',   en:'Pray / seek blessings',       yi:['祭祀','祈福','求嗣','安香']},
+  {id:'social',  cn:'會親友', en:'Celebrate / meet friends',    yi:['会亲友']},
+  {id:'medical', cn:'求醫',   en:'Seek medical treatment',      yi:['求医','治病','针灸']}
+];
+let electEvent='move', electWindow=90;
+const WEEKDAY=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function renderElect(){
+  if(!chart){ document.getElementById('v-elect').innerHTML=''; return; }
+  const {ec}=chart, Solar=window.Solar;
+  const DB=zhiChar(ec.getDay()), YB=zhiChar(ec.getYear()), fav=chosenYongShen||[];
+  const ev=ELECT_EVENTS.find(e=>e.id===electEvent)||ELECT_EVENTS[0];
+  const days=electWindow, today=new Date();
+  const found=[], avoid=[];
+  for(let i=0;i<days;i++){
+    const d=new Date(today.getFullYear(),today.getMonth(),today.getDate()+i);
+    const l=Solar.fromYmdHms(d.getFullYear(),d.getMonth()+1,d.getDate(),12,0,0).getLunar();
+    const yi=l.getDayYi()||[], ji=l.getDayJi()||[];
+    const yiHit=ev.yi.filter(t=>yi.includes(t));
+    const jiHit=ev.yi.filter(t=>ji.includes(t));
+    const blanket=ji.includes('诸事不宜')||(yi.length===1&&yi[0]==='无');
+    const gz=l.getDayInGanZhi(), z=gz[1];
+    const clashesMe=(clashOf(YB)===z);            // 沖本命 — the standard 擇日 disqualifier
+    const sc=scoreDay(l, DB, YB, fav);
+    if(yiHit.length && !jiHit.length && !blanket && !clashesMe){
+      found.push({d,l,gz,yiHit,sc,total:sc.s + yiHit.length*0.75});
+    } else if(i<45 && (jiHit.length || blanket || clashesMe)){
+      avoid.push({d,l,gz,jiHit,blanket,clashesMe});
+    }
+  }
+  found.sort((a,b)=>b.total-a.total);
+  const best=found.slice(0,8);
+  const fmt=o=>{const d=o.d; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} · ${WEEKDAY[d.getDay()]}`;};
+
+  const evOpts=ELECT_EVENTS.map(e=>`<option value="${e.id}" ${e.id===electEvent?'selected':''}>${e.en} ${e.cn}</option>`).join('');
+  const winOpts=[30,60,90,180].map(n=>`<option value="${n}" ${n===electWindow?'selected':''}>next ${n} days</option>`).join('');
+
+  const bestHtml = best.length ? best.map(o=>{
+    const g=o.gz[0], z=o.gz[1];
+    const pos=o.sc.pos.map(t=>`<span class="tag he">${t}</span>`).join('');
+    const neg=o.sc.neg.map(t=>`<span class="tag clash">${t}</span>`).join('');
+    return `<div class="ys-method">
+      <div class="ys-h">${fmt(o)} · <span class="cjk"><span class="${elClass(GAN_EL[g])}">${g}</span><span class="${elClass(ZHI_EL[z])}">${z}</span></span></div>
+      <div style="margin:4px 0;"><span class="tag he"><span class="cjk">宜 ${o.yiHit.join('、')}</span> ✓</span> <span class="en-inline">almanac favours ${ev.en.toLowerCase()}</span></div>
+      ${pos?`<div style="margin:4px 0;">${pos}</div>`:''}
+      ${neg?`<div style="margin:4px 0;"><span class="src" style="display:inline;">minor caveats: </span>${neg}</div>`:''}
+    </div>`;
+  }).join('') : `<div class="empty">No clearly favourable day for <b>${ev.en}</b> in the next ${days} days (the almanac's <span class="cjk">宜 ${ev.cn}</span> didn't fall on a day that also clears your zodiac clash). Try a longer window above, or consult a practitioner for a fuller election.</div>`;
+
+  const avoidSoon = avoid.slice(0,6).map(o=>{
+    const reason = o.clashesMe ? '<span class="cjk">沖</span> your zodiac (本命)'
+      : o.blanket ? '<span class="cjk">諸事不宜</span> — inauspicious for all'
+      : `<span class="cjk">忌 ${o.jiHit.join('、')}</span> — almanac warns against it`;
+    return `<div class="kv"><span class="k">${fmt(o)} <span class="cjk">${o.gz}</span></span><span class="v" style="text-align:left;max-width:60%">${reason}</span></div>`;
+  }).join('');
+
+  document.getElementById('v-elect').innerHTML=`
+    <div class="block">
+      <h3><span class="cjk">擇日</span>Choose a date for an event</h3>
+      <div class="interp" style="margin-top:0;">Pick what you're planning. The app ranks the days ahead that the traditional almanac marks
+        <span class="cjk">宜</span> (suitable) for that activity <em>and</em> that fit your own chart — skipping any day whose branch clashes your birth-year zodiac (<span class="cjk">沖本命</span>), the classical disqualifier in date selection (擇日).</div>
+      <div class="row-inline" style="gap:10px;flex-wrap:wrap;margin-top:10px;">
+        <select id="electEv" style="width:auto;">${evOpts}</select>
+        <select id="electWin" style="width:auto;">${winOpts}</select>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>Best days for <span class="cjk">${ev.cn}</span> ${ev.en}</h3>
+      ${bestHtml}
+    </div>
+
+    ${avoidSoon?`<div class="block">
+      <h3>Days to avoid (next 45 days)</h3>
+      ${avoidSoon}
+    </div>`:''}
+
+    <div class="block" style="border-color:rgba(178,58,46,.3);">
+      <div class="src" style="margin:0;">The <span class="cjk">宜 / 忌</span> lists are the traditional 老黃曆 (通書) values for each calendar day (engine: lunar-javascript) — deterministic, and the same for everyone. Ranking them <em>against your chart</em> is traditional interpretation, not a guarantee. Serious elections (a wedding, a business opening) also weigh the hour, the 主事人 vs the day's 神煞, and more — a practitioner does that fuller work.</div>
+    </div>`;
+
+  const es=document.getElementById('electEv'); if(es) es.addEventListener('change',()=>{ electEvent=es.value; renderElect(); });
+  const ws=document.getElementById('electWin'); if(ws) ws.addEventListener('change',()=>{ electWindow=parseInt(ws.value,10)||90; renderElect(); });
+}
 function renderSettings(){
   const host=document.getElementById('ysHost'); if(!host) return;
   host.innerHTML = chart ? renderYongShen() : '';
@@ -1495,7 +1592,7 @@ document.getElementById('go').addEventListener('click',async()=>{
     if(typeof window.Solar==='undefined') throw new Error("Calculation engine failed to load. Check your connection, or place lunar.js beside this file.");
     chart=buildChart();
     chosenYongShen = pendingYongShen;     // restore a saved element choice on auto-load; null on a fresh manual cast
-    renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderGuide();
+    renderSummary(); renderNatal(); renderLuck(); renderToday(); renderDates(); renderElect(); renderGuide();
     renderSettings(); wireYongShen();
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
     const dt=document.querySelector('.tab[data-v="today"]'); if(dt) dt.click();
