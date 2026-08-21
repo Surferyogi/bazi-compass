@@ -274,7 +274,7 @@
         onload="window.__lr()" onerror="(function(){var s=document.createElement('script');s.src='lunar.js';s.onload=window.__lr;s.onerror=window.__le;document.head.appendChild(s);})()"></script>
 <script>
 "use strict";
-const VERSION = "v2026:06:15-06:30";
+const VERSION = "v2026:06:15-07:30";
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').innerHTML = "<b>App version:</b> " + VERSION + " · fully client-side, no data leaves your device.";
 
@@ -662,9 +662,80 @@ const ELECT_EVENTS=[
   {id:'social',  cn:'會親友', en:'Celebrate / meet friends',    yi:['会亲友']},
   {id:'medical', cn:'求醫',   en:'Seek medical treatment',      yi:['求医','治病','针灸']}
 ];
-let electEvent='move', electWindow=90;
+let electEvent='move', electWindow=90, electDate='';
 const WEEKDAY=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// per-時辰 (two-hour) analysis for a day: uses the engine's real hour 黄道/黑道, 吉/凶, 宜/忌 and clash
+function electHourRows(l, ev, DB, YB, fav){
+  return (l.getTimes()||[]).map(t=>{
+    const type=t.getTianShenType?t.getTianShenType():null;   // 黄道 / 黑道
+    const luck=t.getTianShenLuck?t.getTianShenLuck():null;   // 吉 / 凶
+    const yi=t.getYi?(t.getYi()||[]):[], ji=t.getJi?(t.getJi()||[]):[];
+    const yiHit=ev.yi.filter(x=>yi.includes(x)), jiHit=ev.yi.filter(x=>ji.includes(x));
+    const hz=t.getZhi(), hg=t.getGan(), hEl=GAN_EL[hg];
+    const chong=t.getChong?t.getChong():null;
+    const clashMe = chong===YB ? 'year' : (chong===DB ? 'day' : null);
+    let s=0;
+    if(type==='黄道') s+=2; else if(type==='黑道') s-=2;
+    if(luck==='吉') s+=1; else if(luck==='凶') s-=1;
+    s+=yiHit.length*3; s-=jiHit.length*4;
+    if(clashMe==='year') s-=4; else if(clashMe==='day') s-=2;
+    if(fav.includes(hEl)) s+=1;
+    return {min:t.getMinHm(), max:t.getMaxHm(), hz, hg, hEl, type, luck, yiHit, jiHit, clashMe,
+            xi:(t.getPositionXiDesc?t.getPositionXiDesc():null), s};
+  });
+}
+function electDateBlock(dstr, ev, DB, YB, fav){
+  const Solar=window.Solar, p=dstr.split('-').map(Number), Y=p[0], M=p[1], D=p[2];
+  if(!Y||!M||!D) return '';
+  const l=Solar.fromYmdHms(Y,M,D,12,0,0).getLunar();
+  const yi=l.getDayYi()||[], ji=l.getDayJi()||[];
+  const yiHit=ev.yi.filter(t=>yi.includes(t)), jiHit=ev.yi.filter(t=>ji.includes(t));
+  const blanket=ji.includes('诸事不宜')||(yi.length===1&&yi[0]==='无');
+  const gz=l.getDayInGanZhi(), g=gz[0], z=gz[1];
+  const clashesMe=clashOf(YB)===z;
+  const sc=scoreDay(l,DB,YB,fav);
+  const dayType=l.getDayTianShenType?l.getDayTianShenType():null;
+  const wd=WEEKDAY[new Date(Y,M-1,D).getDay()];
+  const label=`${String(D).padStart(2,'0')}-${MON[M-1]}-${Y} · ${wd}`;
+  let verdict, vcol;
+  if(clashesMe){ verdict=`Clashes your birth-year zodiac (<span class="cjk">沖本命</span>) — traditionally avoided for ${ev.en.toLowerCase()}.`; vcol='#e7a59c'; }
+  else if(blanket){ verdict='<span class="cjk">諸事不宜</span> — the almanac marks this day inauspicious for everything.'; vcol='#e7a59c'; }
+  else if(jiHit.length){ verdict=`Almanac marks <span class="cjk">忌 ${jiHit.join('、')}</span> — not recommended for ${ev.en.toLowerCase()}.`; vcol='#e7a59c'; }
+  else if(yiHit.length){ verdict=`Suitable — the almanac marks this day <span class="cjk">宜 ${yiHit.join('、')}</span> for ${ev.en.toLowerCase()}.`; vcol='#9fcba9'; }
+  else { verdict=`Neutral — the almanac neither favours nor forbids ${ev.en.toLowerCase()} on this day.`; vcol='var(--gold)'; }
+  const pos=sc.pos.map(t=>`<span class="tag he">${t}</span>`).join('');
+  const neg=sc.neg.map(t=>`<span class="tag clash">${t}</span>`).join('');
+
+  const rows=electHourRows(l, ev, DB, YB, fav).slice().sort((a,b)=>a.min.localeCompare(b.min));
+  const rec=rows.filter(r=>r.s>0 && !r.jiHit.length && r.clashMe!=='year').sort((a,b)=>b.s-a.s).slice(0,3);
+  const recHtml = rec.length ? rec.map(r=>{
+    const dir=r.xi?` · enter from <span class="cjk">${r.xi}</span> <span class="en-inline">${dirEN(r.xi)}</span>`:'';
+    const yiTag=r.yiHit.length?` · <span class="cjk">宜 ${r.yiHit.join('、')}</span>`:'';
+    return `<div class="kv"><span class="k">${r.min}–${r.max} <span class="cjk">${r.hz}時</span></span><span class="v" style="text-align:left;max-width:66%"><span style="color:#9fcba9"><span class="cjk">${r.type||''}</span>${r.luck?' '+r.luck:''}</span>${yiTag}${dir}</span></div>`;
+  }).join('') : '<div class="empty">No clearly auspicious hour clears your chart on this date — the day itself is likely the limiting factor.</div>';
+  const allHtml = rows.map(r=>{
+    const bad=(r.clashMe==='year'||r.jiHit.length||(r.type==='黑道'&&r.s<0));
+    const mark = bad?'<span style="color:#e7a59c">✕</span>':(r.s>=2?'<span style="color:#9fcba9">✓</span>':'<span style="color:var(--paper-faint)">•</span>');
+    const note = r.clashMe==='year'?'· 沖本命':r.clashMe==='day'?'· 沖日':(r.jiHit.length?'· 忌':'');
+    return `<div class="kv" style="padding:3px 0;"><span class="k">${mark} ${r.min}–${r.max} <span class="cjk">${r.hz}</span></span><span class="v"><span class="cjk">${r.type||''}</span> <span class="en-inline">${r.luck||''}</span> <span class="cjk">${note}</span></span></div>`;
+  }).join('');
+
+  return `
+    <div class="block">
+      <h3>On ${label} · <span class="cjk"><span class="${elClass(GAN_EL[g])}">${g}</span><span class="${elClass(ZHI_EL[z])}">${z}</span></span> — for <span class="cjk">${ev.cn}</span> ${ev.en}</h3>
+      <div class="kv"><span class="k">Verdict</span><span class="v" style="text-align:left;max-width:66%"><em style="color:${vcol}">${verdict}</em></span></div>
+      <div class="kv"><span class="k">Day quality</span><span class="v"><span class="cjk">${dayType||'—'}</span> <span class="en-inline">${dayType==='黄道'?'auspicious':dayType==='黑道'?'inauspicious':''}</span></span></div>
+      ${pos?`<div style="margin:6px 0;">${pos}</div>`:''}
+      ${neg?`<div style="margin:6px 0;"><span class="src" style="display:inline;">caveats: </span>${neg}</div>`:''}
+    </div>
+    <div class="block">
+      <h3>Best time (<span class="cjk">時辰</span>) on this date</h3>
+      ${recHtml}
+      <div class="src" style="margin-top:8px;">Auspicious hours (<span class="cjk">黄道 / 吉時</span>) that don't clash you, ranked for ${ev.en.toLowerCase()}. Windows are the traditional two-hour 時辰 (engine data); <span class="cjk">時辰宜/忌</span> and 黄道/黑道 are deterministic almanac values.</div>
+      <details style="margin-top:8px;"><summary class="src" style="cursor:pointer;">Show all 12 時辰</summary>${allHtml}</details>
+    </div>`;
+}
 function renderElect(){
   if(!chart){ document.getElementById('v-elect').innerHTML=''; return; }
   const {ec}=chart, Solar=window.Solar;
@@ -725,7 +796,14 @@ function renderElect(){
         <select id="electEv" style="width:auto;">${evOpts}</select>
         <select id="electWin" style="width:auto;">${winOpts}</select>
       </div>
+      <div class="row-inline" style="gap:10px;flex-wrap:wrap;margin-top:10px;">
+        <label style="margin:0;color:var(--paper-dim);font-size:13px;">Or analyse a specific date</label>
+        <input type="date" id="electDate" value="${electDate||''}" min="1901-01-01" max="2099-12-31" style="width:auto;">
+        ${electDate?'<button id="electClear" class="adv-toggle" style="margin:0;">Clear</button>':''}
+      </div>
     </div>
+
+    ${electDate?electDateBlock(electDate, ev, DB, YB, fav):''}
 
     <div class="block">
       <h3>Best days for <span class="cjk">${ev.cn}</span> ${ev.en}</h3>
@@ -743,6 +821,8 @@ function renderElect(){
 
   const es=document.getElementById('electEv'); if(es) es.addEventListener('change',()=>{ electEvent=es.value; renderElect(); });
   const ws=document.getElementById('electWin'); if(ws) ws.addEventListener('change',()=>{ electWindow=parseInt(ws.value,10)||90; renderElect(); });
+  const ds=document.getElementById('electDate'); if(ds) ds.addEventListener('change',()=>{ electDate=ds.value||''; renderElect(); });
+  const dc=document.getElementById('electClear'); if(dc) dc.addEventListener('click',()=>{ electDate=''; renderElect(); });
 }
 function renderSettings(){
   const host=document.getElementById('ysHost'); if(!host) return;
