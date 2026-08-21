@@ -4,7 +4,7 @@
        next open when you're online, with no cache-clearing. Falls back to cache when offline.
      • static assets (engine, icons, manifest) are cache-first with a quiet background refresh.
    Full offline capability is preserved. Bump CACHE when the bundled assets change. */
-const CACHE = 'bazi-compass-v2026-06-15g';
+const CACHE = 'bazi-compass-v2026-06-15h';
 const ASSETS = [
   './', './index.html', './manifest.json', './lunar.js',
   './icon-192.png', './icon-512.png'
